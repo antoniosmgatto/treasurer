@@ -22,3 +22,6 @@ data/
 # Next.js build output and generated agent guidance.
 apps/web/.next/
 apps/web/.playwright-mcp/
+
+# Design working files — sources and exports, kept locally.
+docs/design/
