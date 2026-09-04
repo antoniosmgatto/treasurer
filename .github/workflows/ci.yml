@@ -13,11 +13,14 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Read from .tool-versions, so asdf and CI cannot drift apart.
+          node-version-file: .tool-versions
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
-      - run: pnpm --filter @treasurer/web build
+      # The app consumes the engine packages' compiled output, so they have to be built first.
+      # `next build` alone would compile against whatever dist happened to be lying around.
+      - run: pnpm build:web
