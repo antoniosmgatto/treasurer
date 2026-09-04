@@ -34,16 +34,16 @@ after it is packaging. If the math is wrong, nothing else matters.
 
 ---
 
-## Phase 2 — First usable version (no UI)
+## Phase 2 — Test harness (no UI)
 
 A command-line tool that reads an event from a JSON file and prints the settlement plus a
 ready-to-paste chat summary.
 
-**Done when:** you can settle a real event with it — ugly, typed by hand, but real numbers you'd
-send to real people.
+**Done when:** it settles an event you have already settled by hand, and the numbers agree.
 
-**Why:** this is the earliest point the project delivers value. Everything from here is about
-removing the JSON file, not about making the answer better.
+**Why not "first usable version":** nobody hand-writes JSON for a ten-person event after a ride.
+Its real job is running fixtures and catching regressions. Phase 4 is the first version anyone
+will actually use. (See D5.)
 
 ---
 
