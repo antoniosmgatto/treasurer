@@ -9,3 +9,8 @@ coverage/
 !.env.example
 
 .vercel/
+dist/
+
+# Real member data never enters the repository (D8).
+*.private.json
+data/

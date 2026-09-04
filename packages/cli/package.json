@@ -1,0 +1,14 @@
+{
+  "name": "@treasurer/cli",
+  "version": "0.0.0",
+  "description": "Test harness: settle an event from a JSON file",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "treasurer": "./dist/cli.js"
+  },
+  "dependencies": {
+    "@treasurer/core": "workspace:*"
+  }
+}

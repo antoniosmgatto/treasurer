@@ -27,7 +27,7 @@ Treasurer is built around problem 3, because that is the one no expense splitter
 **One treasury, hub and spoke.** All money flows through a single account. Members pay the
 treasury; the treasury reimburses whoever fronted money. No n-to-n transfer optimization — that
 web of little debts is the mess being replaced. The treasury itself is just an ordinary member
-row that never charges itself, and its running balance *is* the group's fund.
+row that never charges itself, and its running balance _is_ the group's fund.
 
 **Identification codes in the cents.** Each member has a permanent two-digit code. Their charge
 is the per-head amount rounded up to the whole unit, with their code as the cents:
@@ -48,15 +48,25 @@ the cent.
 guest. The same field handles half portions — and exclusions are always shown, never silently
 dropped, because a missing line reads as a mistake.
 
+## Try it
+
+```sh
+pnpm install
+pnpm cli examples/acampamento.json
+```
+
+Prints the per-member table, the amount to ask each person for, and a summary ready to paste
+into a group chat. `--member m03` shows one person's own breakdown, rounding included.
+
 ## Roadmap
 
-| Version | Scope |
-|---|---|
-| v0.1 | Group, events, expenses, shares, per-member settlement, copy-to-chat summary, access by unguessable link |
-| v0.2 | Collection — payment codes per member and one-tap personalized charge messages |
-| v0.3 | **Reconciliation** — import the bank statement, auto-match on code + amount, queue the rest |
-| v0.4 | Itemized receipts — scan the invoice, tag participants per item instead of per receipt |
-| v0.5 | Trust layer — member declares payment, uploads proof, treasurer confirms |
+| Version | Scope                                                                                                    |
+| ------- | -------------------------------------------------------------------------------------------------------- |
+| v0.1    | Group, events, expenses, shares, per-member settlement, copy-to-chat summary, access by unguessable link |
+| v0.2    | Collection — payment codes per member and one-tap personalized charge messages                           |
+| v0.3    | **Reconciliation** — import the bank statement, auto-match on code + amount, queue the rest              |
+| v0.4    | Itemized receipts — scan the invoice, tag participants per item instead of per receipt                   |
+| v0.5    | Trust layer — member declares payment, uploads proof, treasurer confirms                                 |
 
 See [`docs/PLAN.md`](docs/PLAN.md) for the full plan.
 
