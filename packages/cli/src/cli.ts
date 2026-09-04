@@ -17,6 +17,7 @@ const USAGE = `treasurer — settle an event, or bootstrap a club
   treasurer <file.json>              per-member table and chat summary
   treasurer <file.json> --member ID  one member's own breakdown
   treasurer seed <club.json>         create the club and print everyone's links
+  treasurer migrate                  apply migrations to DATABASE_URL
 
 Settling is a test harness (D5); seeding is how a club first exists (D18).
 The file shapes are in examples/.`;
@@ -62,6 +63,16 @@ async function seed(path: string): Promise<number> {
   for (const link of created.links) {
     console.log(`  ${formatCode(link.code)}  ${link.name.padEnd(20)}  ${link.url}`);
   }
+  return 0;
+}
+
+/** Applies the schema to whatever DATABASE_URL points at — the deploy step. */
+async function migrate(): Promise<number> {
+  const target = process.env['DATABASE_URL'];
+  console.log(target ? 'Migrando o banco remoto…' : 'Migrando o banco local (.data)…');
+
+  await applyMigrations(await connect());
+  console.log('Pronto.');
   return 0;
 }
 
@@ -114,14 +125,16 @@ function main(argv: string[]): number {
 try {
   const argv = process.argv.slice(2);
   process.exitCode =
-    argv[0] === 'seed'
-      ? await seed(
-          argv[1] ??
-            (() => {
-              throw new ParseError('seed needs a file: treasurer seed club.json');
-            })(),
-        )
-      : main(argv);
+    argv[0] === 'migrate'
+      ? await migrate()
+      : argv[0] === 'seed'
+        ? await seed(
+            argv[1] ??
+              (() => {
+                throw new ParseError('seed needs a file: treasurer seed club.json');
+              })(),
+          )
+        : main(argv);
 } catch (error) {
   if (error instanceof InvalidLedgerError || error instanceof ParseError) {
     console.error(error.message);
