@@ -1,7 +1,7 @@
 {
   "name": "@treasurer/core",
   "version": "0.0.0",
-  "description": "Settlement engine: weighted expense shares, single-treasury netting, and identification codes for bank reconciliation",
+  "description": "Settlement engine: weighted expense shares rounded up to the cent, collected by whoever fronted the bill",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

@@ -32,7 +32,7 @@ export const t = {
     share: 'Parte',
     toPay: 'A pagar',
     receives: 'Recebe',
-    rounding: 'Arredondamento pro caixa',
+    rounding: 'Arredondamento pra cima',
     paid: 'Recebido',
     markPaid: 'Marcar como recebido',
     markReimbursed: 'Marcar como devolvido',
@@ -43,11 +43,12 @@ export const t = {
 
   member: {
     yourShare: 'Sua parte',
-    rounding: 'Arredondamento (vai pro caixa)',
+    roundedUp: 'Arredondado pra cima pros centavos fecharem com a nota.',
+    roundingKept: 'Arredondamento recebido',
     toPay: 'A pagar',
     youReceive: 'Você recebe',
     settled: 'Você está quitado',
-    exact: 'Pague o valor exato — os centavos identificam você.',
+    exact: 'Pague o valor exato, sem arredondar.',
     broughtOwn: 'você trouxe a sua',
     notReady: 'O rateio ainda está sendo fechado. Volte daqui a pouco.',
     noEvent: 'Nenhum rolê aberto no momento.',
@@ -61,7 +62,6 @@ export const t = {
     retired: 'Saiu do clube',
     link: 'Link',
     copyLink: 'Copiar link',
-    treasury: 'Caixa',
   },
 
   errors: {

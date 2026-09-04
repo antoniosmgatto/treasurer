@@ -15,7 +15,7 @@ function formatDate(iso: string): string {
  */
 export function chatSummary(event: Event, settlement: Settlement): string {
   const receiving = settlement.members.filter((member) => member.net > 0);
-  const paying = settlement.members.filter((member) => member.charged !== null);
+  const paying = settlement.members.filter((member) => member.owed > 0);
 
   const lines = [
     `*${event.name}* — ${formatDate(event.date)}`,
@@ -24,9 +24,9 @@ export function chatSummary(event: Event, settlement: Settlement): string {
   ];
 
   if (paying.length > 0) {
-    lines.push('*Quem paga* (o valor exato identifica você — não arredonde)');
+    lines.push('*Quem paga*');
     for (const member of paying) {
-      lines.push(`• ${member.name}: ${formatBRL(member.charged!)}`);
+      lines.push(`• ${member.name}: ${formatBRL(member.owed)}`);
     }
     lines.push('');
   }
@@ -39,7 +39,11 @@ export function chatSummary(event: Event, settlement: Settlement): string {
     lines.push('');
   }
 
-  lines.push(`_Arredondamento para o caixa: ${formatBRL(settlement.treasurySurplus)}_`);
+  if (settlement.rounding > 0) {
+    lines.push(
+      `_Arredondamento para cima: ${formatBRL(settlement.rounding)}, fica com quem pagou_`,
+    );
+  }
   return lines.join('\n');
 }
 
@@ -62,10 +66,8 @@ export function memberSummary(member: MemberSettlement): string {
   }
 
   lines.push('');
-  if (member.charged !== null) {
-    lines.push(`Sua parte: ${formatBRL(member.owed)}`);
-    lines.push(`Arredondamento (vai pro caixa): ${formatBRL(member.surplus)}`);
-    lines.push(`*A pagar: ${formatBRL(member.charged)}*`);
+  if (member.owed > 0) {
+    lines.push(`*A pagar: ${formatBRL(member.owed)}*`);
   } else if (member.net > 0) {
     lines.push(`*Você recebe: ${formatBRL(member.net)}*`);
   } else {

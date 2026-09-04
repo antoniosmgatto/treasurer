@@ -3,7 +3,7 @@
 Settled design decisions, with the reasoning that produced them. Overturning one is fine —
 doing it silently is not.
 
-## D1 — Rounding surplus is accepted, and disclosed
+## D1 — Rounding is accepted, and disclosed — _amended by D24_
 
 Embedding a two-digit identification code in the cents requires rounding up to the whole unit,
 which costs on average 0.50 per member, plus the code's own value on top. For a 12-person event
@@ -14,10 +14,11 @@ We accept it — it is the price of unambiguous reconciliation, and it is cheap 
 member's breakdown must show it as an explicit line (`arredondamento R$0,52 → caixa`). Money that
 moves without being named is what destroys trust in a ledger.
 
-**Revisit at v0.3:** if the bank statement turns out to expose the payment message field, the
-whole cents scheme becomes unnecessary.
+**Amended by D24:** the cents no longer carry the code, so the amounts here are historical. What
+survives is the rule that produced them — rounding is shown as its own line, never folded into a
+share.
 
-## D2 — `owed` and `charged` are different numbers
+## D2 — `owed` and `charged` are different numbers — _superseded by D24_
 
 `owed` is the fair share and sums to zero across an event. `charged` is what we ask the member to
 transfer, and is always ≥ `owed`. Reconciliation matches against `charged`; fairness is argued in
@@ -25,11 +26,14 @@ transfer, and is always ≥ `owed`. Reconciliation matches against `charged`; fa
 
 Invariants: `sum(owed) === 0`, and `sum(charged) − sum(owed) === treasury surplus`.
 
+**Superseded by D24.** There is one number again: the member's share, rounded up to the cent. The
+engine no longer returns `charged`.
+
 ## D3 — The ledger is append-only
 
 The engine folds a list of signed entries rather than computing a single event in isolation. An
 event's settlement is a filter over the ledger; a member's running balance is the same fold
-without the filter; the fund balance is that fold for the treasury row.
+without the filter.
 
 This is what lets an overpayment, a late payment, or a correction land somewhere. Corrections are
 new entries, never edits — which also answers "who changed this?".
@@ -47,13 +51,15 @@ Nobody hand-writes JSON for a ten-person event after a ride. Its job is running 
 checking the engine against events already settled by hand. The UI is the first genuinely usable
 version.
 
-## D6 — The treasury row and the treasurer are never the same row
+## D6 — The treasury row and the treasurer are never the same row — _superseded by D25_
 
 The caixa is a member row with `isTreasury: true`, weight always 0, no human attached. The person
 who holds it is an ordinary member row who owes their share like everyone else and happens to
 have write access. Validation rejects a treasury row appearing as a participant.
 
 Conflating them nets a personal share against the club fund and quietly corrupts every balance.
+
+**Superseded by D25.** There is no treasury row at all.
 
 ## D7 — Identification codes are never reused
 
@@ -63,8 +69,8 @@ misattribute a late payment and make historical statements unreadable.
 ## D8 — Minimum personal data, and none of it in git
 
 Real member data (names, phones, keys) is gitignored; the repository carries only an anonymized
-example. Member payment keys are **not** stored: members pay the caixa, and the handful of people
-reimbursed per event are paid from the treasurer's own phone.
+example. Member payment keys are **not** stored as profile data; whoever collects a bill types the
+key that bill is collected to.
 
 Less data is less liability. This is a club, not a company with a data protection officer.
 
@@ -207,3 +213,33 @@ revoking all of them to fix one is the wrong trade.
 
 This is what D9's two links imply once they exist in the world rather than in a design: an
 unguessable URL is a password, and passwords have to be replaceable.
+
+## D24 — Shares round up to the cent, and the rounding stays with the collector
+
+Every share is rounded **up**, so the shares always add up to at least the bill and whoever fronted
+the money is never left short. The excess — under one cent per member, a few centavos per bill —
+is credited back to them as its own ledger entry, and shown (D1).
+
+This replaces rounding up to the whole real with the member's identification code in the cents
+(D2). That scheme cost each member up to R$0,99 per bill, which was defensible while the surplus
+fed the club's cash box. With the caixa gone (D25) those centavos would land in a private account
+instead, and the codes cannot be reconciled against a statement nobody has connected yet.
+
+The codes themselves stay on the member, out of the amount. A collector who links their own bank
+account can put them back into the cents of their own charges — they are the one who gets
+something back for it.
+
+## D25 — There is no caixa
+
+The club's cash box is gone: no treasury member row, no `isTreasury`, no running fund. Events are
+isolated, and only the health of one event matters.
+
+Every bill names its own collector, chosen by whoever adds it — a member's key, or the club's. The
+club is a label plus a key on a bill rather than an entity with a balance.
+
+This reverses the hub and spoke the project started from, and reintroduces the web of small debts
+it set out to replace. The difference is who holds that web: the app computes it, records it and
+chases it, instead of a member keeping three Pix keys in his head.
+
+The migration that drops the column also soft-deletes the caixa rows (D19), so past events keep
+whatever it fronted.

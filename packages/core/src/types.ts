@@ -9,8 +9,6 @@ export interface Member {
   id: MemberId;
   name: string;
   code: MemberCode;
-  /** The club cash box. Always weight 0, never a participant, no human attached (D6). */
-  isTreasury: boolean;
   /** Set when the member leaves. Their code retires with them and is never reallocated. */
   retiredAt?: string;
 }
@@ -24,7 +22,7 @@ export interface Participant {
 export interface Expense {
   id: string;
   description: string;
-  /** Whoever fronted the money. May be the treasury. */
+  /** Whoever fronted the money, and who the shares are collected for. */
   payerId: MemberId;
   amount: Cents;
   participants: readonly Participant[];

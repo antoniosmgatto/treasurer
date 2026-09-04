@@ -2,10 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parseEventFile, ParseError } from '../src/parse.js';
 
 const valid = {
-  members: [
-    { id: 'caixa', name: 'Caixa', code: 99, isTreasury: true },
-    { id: 'm01', name: 'Membro 01', code: 1 },
-  ],
+  members: [{ id: 'm01', name: 'Membro 01', code: 1 }],
   event: {
     id: 'churrasco',
     name: 'Churrasco',
@@ -40,9 +37,8 @@ describe('parseEventFile', () => {
     ]);
   });
 
-  it('defaults isTreasury to false and status to open', () => {
+  it('defaults the status to open', () => {
     const parsed = parseEventFile(valid);
-    expect(parsed.members[1]!.isTreasury).toBe(false);
     expect(parsed.event.status).toBe('open');
   });
 

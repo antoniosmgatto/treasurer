@@ -11,7 +11,7 @@ export type EntryKind =
   | 'front' /** money the member put in up front */
   | 'payment' /** money received from the member */
   | 'reimbursement' /** money paid out to the member */
-  | 'rounding' /** identification-code surplus, moved to the treasury */
+  | 'rounding' /** what rounding the shares up left over, credited to whoever collects */
   | 'adjustment';
 
 export interface LedgerEntry {
@@ -25,11 +25,13 @@ export interface LedgerEntry {
 }
 
 /**
- * One expense becomes one credit to whoever fronted it and one debit per participant. The
- * flooring remainder lands on the payer, who is the only person with no grounds to complain.
+ * One expense becomes one credit to whoever fronted it and one debit per participant. Shares are
+ * rounded up, so they add up to a little more than the bill; that difference is credited back to
+ * the payer as its own entry rather than folded into a share, which keeps the expense balanced
+ * and the rounding visible (D1).
  */
 export function entriesForExpense(expense: Expense, eventId?: string): LedgerEntry[] {
-  const { shares, remainder } = splitByWeight(expense.amount, expense.participants);
+  const { shares, rounding } = splitByWeight(expense.amount, expense.participants);
   const base = { eventId, expenseId: expense.id } as const;
 
   const entries: LedgerEntry[] = [
@@ -37,17 +39,11 @@ export function entriesForExpense(expense: Expense, eventId?: string): LedgerEnt
   ];
 
   for (const [memberId, share] of shares) {
-    const owed = memberId === expense.payerId ? cents(share + remainder) : share;
-    if (owed === 0 && memberId !== expense.payerId) {
-      entries.push({ ...base, memberId, kind: 'share', amount: cents(0) });
-      continue;
-    }
-    entries.push({ ...base, memberId, kind: 'share', amount: cents(-owed) });
+    entries.push({ ...base, memberId, kind: 'share', amount: cents(-share) });
   }
 
-  const payerIsParticipant = shares.has(expense.payerId);
-  if (!payerIsParticipant && remainder !== 0) {
-    entries.push({ ...base, memberId: expense.payerId, kind: 'share', amount: cents(-remainder) });
+  if (rounding !== 0) {
+    entries.push({ ...base, memberId: expense.payerId, kind: 'rounding', amount: rounding });
   }
 
   return entries;

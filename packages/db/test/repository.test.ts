@@ -17,19 +17,13 @@ import { freshDatabase } from './harness.js';
 const GROUP = 'moto-clube';
 const EVENT = 'acampamento';
 
-const roster: Member[] = [
-  { id: 'caixa', name: 'Caixa do Clube', code: 99, isTreasury: true },
-  ...Array.from({ length: 10 }, (_, index) => ({
-    id: `m${String(index + 1).padStart(2, '0')}`,
-    name: `Membro ${String(index + 1).padStart(2, '0')}`,
-    code: index + 1,
-    isTreasury: false,
-  })),
-];
+const roster: Member[] = Array.from({ length: 10 }, (_, index) => ({
+  id: `m${String(index + 1).padStart(2, '0')}`,
+  name: `Membro ${String(index + 1).padStart(2, '0')}`,
+  code: index + 1,
+}));
 
-const everyone = roster
-  .filter((member) => !member.isTreasury)
-  .map((member) => ({ memberId: member.id, weight: 1 }));
+const everyone = roster.map((member) => ({ memberId: member.id, weight: 1 }));
 
 let db: Db;
 
@@ -73,7 +67,7 @@ describe('round trip', () => {
     await recordExpense(db, EVENT, {
       id: 'compras',
       description: 'Compras',
-      payerId: 'caixa',
+      payerId: 'm03',
       amount: 16_147 as never,
       participants: everyone,
     });
@@ -86,12 +80,12 @@ describe('round trip', () => {
 
     // The same numbers the engine produces from the JSON fixture.
     expect(settlement.total).toBe(47_520);
-    expect(forMember('m01').net).toBe(10_749);
-    expect(forMember('m02').net).toBe(11_119);
-    expect(forMember('caixa').net).toBe(16_140);
-    expect(forMember('m03').charged).toBe(4803);
-    expect(settlement.treasurySurplus).toBe(444);
-    expect(chatSummary(loaded!.event, settlement)).toContain('• Membro 03: R$ 48,03');
+    expect(forMember('m01').net).toBe(10_747);
+    expect(forMember('m02').net).toBe(11_127);
+    expect(forMember('m03').net).toBe(11_397);
+    expect(forMember('m04').owed).toBe(4753);
+    expect(settlement.rounding).toBe(10);
+    expect(chatSummary(loaded!.event, settlement)).toContain('• Membro 04: R$ 47,53');
   });
 
   it('returns null for an event that does not exist', async () => {
@@ -161,16 +155,9 @@ describe('the database enforces the decisions, not just the code', () => {
     ).resolves.not.toThrow();
   });
 
-  it('refuses a second caixa (D6)', async () => {
-    const detail = await violation(() =>
-      insertMembers(db, GROUP, [{ id: 'caixa2', name: 'Outro Caixa', code: 50, isTreasury: true }]),
-    );
-    expect(detail).toContain('member_group_treasury_idx');
-  });
-
   it('refuses two members sharing an identification code', async () => {
     const detail = await violation(() =>
-      insertMembers(db, GROUP, [{ id: 'm11', name: 'Membro 11', code: 1, isTreasury: false }]),
+      insertMembers(db, GROUP, [{ id: 'm11', name: 'Membro 11', code: 1 }]),
     );
     expect(detail).toContain('member_group_code_idx');
   });
@@ -181,7 +168,7 @@ describe('identification codes are never reissued (D7)', () => {
     expect(await nextCode(db, GROUP)).toBe(11);
 
     await insertMembers(db, GROUP, [
-      { id: 'm11', name: 'Membro 11', code: 11, isTreasury: false, retiredAt: '2026-01-01' },
+      { id: 'm11', name: 'Membro 11', code: 11, retiredAt: '2026-01-01' },
     ]);
 
     expect(await nextCode(db, GROUP)).toBe(12);

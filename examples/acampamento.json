@@ -1,16 +1,55 @@
 {
   "members": [
-    { "id": "caixa", "name": "Caixa do Clube", "code": 99, "isTreasury": true },
-    { "id": "m01", "name": "Membro 01", "code": 1 },
-    { "id": "m02", "name": "Membro 02", "code": 2 },
-    { "id": "m03", "name": "Membro 03", "code": 3 },
-    { "id": "m04", "name": "Membro 04", "code": 4 },
-    { "id": "m05", "name": "Membro 05", "code": 5 },
-    { "id": "m06", "name": "Membro 06", "code": 6 },
-    { "id": "m07", "name": "Membro 07", "code": 7 },
-    { "id": "m08", "name": "Membro 08", "code": 8 },
-    { "id": "m09", "name": "Membro 09", "code": 9 },
-    { "id": "m10", "name": "Membro 10", "code": 10 }
+    {
+      "id": "m01",
+      "name": "Membro 01",
+      "code": 1
+    },
+    {
+      "id": "m02",
+      "name": "Membro 02",
+      "code": 2
+    },
+    {
+      "id": "m03",
+      "name": "Membro 03",
+      "code": 3
+    },
+    {
+      "id": "m04",
+      "name": "Membro 04",
+      "code": 4
+    },
+    {
+      "id": "m05",
+      "name": "Membro 05",
+      "code": 5
+    },
+    {
+      "id": "m06",
+      "name": "Membro 06",
+      "code": 6
+    },
+    {
+      "id": "m07",
+      "name": "Membro 07",
+      "code": 7
+    },
+    {
+      "id": "m08",
+      "name": "Membro 08",
+      "code": 8
+    },
+    {
+      "id": "m09",
+      "name": "Membro 09",
+      "code": 9
+    },
+    {
+      "id": "m10",
+      "name": "Membro 10",
+      "code": 10
+    }
   ],
   "event": {
     "id": "acampamento-2026-08",
@@ -35,7 +74,7 @@
       {
         "id": "compras",
         "description": "Compras",
-        "payerId": "caixa",
+        "payerId": "m03",
         "amount": "161,47",
         "participants": ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10"]
       }

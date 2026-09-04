@@ -11,12 +11,6 @@ export class InvalidLedgerError extends Error {
 export function validateMembers(members: readonly Member[]): string[] {
   const problems: string[] = [];
 
-  const treasuries = members.filter((member) => member.isTreasury);
-  if (treasuries.length === 0) problems.push('No treasury row: the club needs exactly one caixa');
-  if (treasuries.length > 1) {
-    problems.push(`Found ${treasuries.length} treasury rows, expected exactly one`);
-  }
-
   const seenCodes = new Map<number, string>();
   for (const member of members) {
     if (!isValidCode(member.code)) {
@@ -51,10 +45,6 @@ export function validateEvent(event: Event, members: readonly Member[]): string[
       if (!member) {
         problems.push(`${expense.description}: unknown participant ${participant.memberId}`);
         continue;
-      }
-      // D6: the caixa fronts money and is credited, but it never carries a share.
-      if (member.isTreasury && participant.weight !== 0) {
-        problems.push(`${expense.description}: the caixa cannot take a share`);
       }
       if (seen.has(participant.memberId)) {
         problems.push(`${expense.description}: ${member.name} listed twice`);

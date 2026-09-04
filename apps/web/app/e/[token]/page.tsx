@@ -39,7 +39,7 @@ export default async function MemberPage({ params }: { params: Promise<{ token: 
    * app loses the trust it exists to create.
    */
   const balance = (await balancesFor(connection, found.groupId)).get(found.member.id) ?? 0;
-  const paid = mine !== undefined && mine.charged !== null && balance >= 0;
+  const paid = mine !== undefined && mine.owed > 0 && balance >= 0;
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-6 p-5">
@@ -48,11 +48,11 @@ export default async function MemberPage({ params }: { params: Promise<{ token: 
         <h1 className="text-2xl font-semibold tracking-tight">{found.member.name}</h1>
       </header>
 
-      {!mine || paid || (mine.charged === null && mine.net === 0) ? (
+      {!mine || paid || (mine.owed === 0 && mine.net === 0) ? (
         <Headline label={t.member.settled} />
-      ) : mine.charged !== null ? (
+      ) : mine.owed > 0 ? (
         <section className="flex flex-col gap-2">
-          <Headline label={t.member.toPay} amount={formatBRL(mine.charged)} />
+          <Headline label={t.member.toPay} amount={formatBRL(mine.owed)} />
           <p className="text-muted-foreground text-sm">{t.member.exact}</p>
         </section>
       ) : (
@@ -74,15 +74,22 @@ export default async function MemberPage({ params }: { params: Promise<{ token: 
             ))}
           </ul>
 
-          {mine.charged !== null && !paid && (
+          {mine.owed > 0 && !paid && (
             <>
               <hr className="border-border" />
               <dl className="flex flex-col gap-1 text-sm">
                 <Row label={t.member.yourShare} value={formatBRL(mine.owed)} />
-                {/* D1: the rounding is named, never buried. */}
-                <Row label={t.member.rounding} value={formatBRL(mine.surplus)} muted />
               </dl>
+              {/* D1: the rounding is named, never buried. */}
+              <p className="text-muted-foreground text-xs">{t.member.roundedUp}</p>
             </>
+          )}
+
+          {/* The other side of the same centavos: they stay with whoever collected the bill. */}
+          {mine.rounding > 0 && (
+            <dl className="flex flex-col gap-1 text-sm">
+              <Row label={t.member.roundingKept} value={formatBRL(mine.rounding)} muted />
+            </dl>
           )}
         </section>
       )}

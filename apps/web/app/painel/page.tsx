@@ -35,7 +35,7 @@ export default async function PanelPage() {
   const balances = await balancesFor(connection, groupId);
   const roster = loaded?.event.expenses[0]?.participants ?? [];
   const rosterIds = new Set(roster.map((entry) => entry.memberId));
-  const spending = members.filter((member) => !member.isTreasury && !member.retiredAt);
+  const spending = members.filter((member) => !member.retiredAt);
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-8 p-5">
@@ -166,10 +166,10 @@ export default async function PanelPage() {
             <tbody>
               {settlement.members.map((member) => {
                 const balance = balances.get(member.memberId) ?? 0;
-                // Nothing charged means the member fronted money and is owed it back.
-                const fronter = member.charged === null;
+                // Owing nothing means the member fronted money and is owed it back.
+                const fronter = member.owed === 0;
                 // A debtor's balance climbs towards zero as they pay; a fronter's falls towards
-                // zero as the caixa pays them back. Both are settled when they reach it.
+                // zero as they are paid back. Both are settled when they reach it.
                 const settled =
                   event.chargesPublishedAt !== null && (fronter ? balance <= 0 : balance >= 0);
                 return (
@@ -184,7 +184,7 @@ export default async function PanelPage() {
                       {member.owed > 0 ? formatBRL(member.owed) : '—'}
                     </td>
                     <td className="py-2 text-right tabular-nums">
-                      {member.charged === null ? formatBRL(member.net) : formatBRL(member.charged)}
+                      {fronter ? formatBRL(member.net) : formatBRL(member.owed)}
                     </td>
                     <td className="py-2 text-right">
                       {settled ? (
@@ -197,7 +197,7 @@ export default async function PanelPage() {
                           <input
                             type="hidden"
                             name="amount"
-                            value={String(fronter ? member.net : member.charged)}
+                            value={String(fronter ? member.net : member.owed)}
                           />
                           <SubmitButton variant="ghost" size="sm">
                             {fronter ? t.settlement.markReimbursed : t.settlement.markPaid}
@@ -211,7 +211,7 @@ export default async function PanelPage() {
             </tbody>
           </table>
           <p className="text-muted-foreground text-xs">
-            {t.settlement.rounding}: {formatBRL(settlement.treasurySurplus)}
+            {t.settlement.rounding}: {formatBRL(settlement.rounding)}
           </p>
 
           {!event.chargesPublishedAt && (
