@@ -57,6 +57,14 @@ function padStart(text: string, width: number): string {
  * command issues. Members are read from the same JSON the settler already understands.
  */
 async function seed(path: string): Promise<number> {
+  // Seeding the wrong database looks exactly like seeding the right one: a club is created and
+  // links are printed. Say which one before doing it, so a missing DATABASE_URL is visible.
+  console.log(
+    process.env['DATABASE_URL']
+      ? 'Criando o clube no banco remoto (DATABASE_URL)…\n'
+      : 'Criando o clube no banco LOCAL (.data) — DATABASE_URL não está definida.\n',
+  );
+
   const file = readJson(path) as {
     name?: string;
     members?: { name: string; code?: number; isTreasury?: boolean }[];
