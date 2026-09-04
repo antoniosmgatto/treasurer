@@ -16,7 +16,7 @@ Repo, license, plan, and a TypeScript workspace that typechecks and runs tests i
 
 ---
 
-## Phase 1 — The math
+## Phase 1 — The math ✅
 
 The settlement engine, as pure functions over plain data. No database, no framework, no I/O.
 
@@ -34,7 +34,7 @@ after it is packaging. If the math is wrong, nothing else matters.
 
 ---
 
-## Phase 2 — Test harness (no UI)
+## Phase 2 — Test harness (no UI) ✅
 
 A command-line tool that reads an event from a JSON file and prints the settlement plus a
 ready-to-paste chat summary.
@@ -47,13 +47,18 @@ will actually use. (See D5.)
 
 ---
 
-## Phase 3 — Persistence
+## Phase 3 — Persistence ✅
 
-Postgres on Neon with Drizzle. The data model the app needs and nothing more: group, member,
-event, expense, share.
+Postgres with Drizzle: group, member, event, expense, share, ledger entry. Tested against PGlite
+— real Postgres in-process, so CI needs no database and no credentials. Neon is wired up at
+deploy time in Phase 6.
 
-**Done when:** an event created in a script survives a restart, and the engine settles it the
-same way it settled the JSON file. The engine does not change — it takes the same plain objects.
+Three decisions are enforced by the database rather than by application code: one open event per
+group (D4) and one caixa per group (D6), both as partial unique indexes, and codes that are never
+reissued (D7), as a unique index covering retired members too.
+
+**Done when:** ✅ an event stored in Postgres settles to the same numbers as the JSON fixture, and
+the engine is unchanged — it takes the same plain objects either way.
 
 ---
 

@@ -1,0 +1,221 @@
+import { chatSummary, settle, type Member } from '@treasurer/core';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { newToken } from '../src/ids.js';
+import {
+  appendEntries,
+  balancesFor,
+  closeEvent,
+  insertMembers,
+  loadEvent,
+  nextCode,
+  recordExpense,
+  type Db,
+} from '../src/repository.js';
+import { events, groups } from '../src/schema.js';
+import { freshDatabase } from './harness.js';
+
+const GROUP = 'moto-clube';
+const EVENT = 'acampamento';
+
+const roster: Member[] = [
+  { id: 'caixa', name: 'Caixa do Clube', code: 99, isTreasury: true },
+  ...Array.from({ length: 10 }, (_, index) => ({
+    id: `m${String(index + 1).padStart(2, '0')}`,
+    name: `Membro ${String(index + 1).padStart(2, '0')}`,
+    code: index + 1,
+    isTreasury: false,
+  })),
+];
+
+const everyone = roster
+  .filter((member) => !member.isTreasury)
+  .map((member) => ({ memberId: member.id, weight: 1 }));
+
+let db: Db;
+
+async function seed(): Promise<void> {
+  await db.insert(groups).values({
+    id: GROUP,
+    name: 'Moto Clube',
+    writeToken: newToken(),
+    readToken: newToken(),
+  });
+  await insertMembers(db, GROUP, roster);
+  await db.insert(events).values({
+    id: EVENT,
+    groupId: GROUP,
+    name: 'Acampamento',
+    date: '2026-08-28',
+  });
+}
+
+beforeEach(async () => {
+  db = await freshDatabase();
+  await seed();
+});
+
+describe('round trip', () => {
+  it('returns the engine the same objects a JSON file would', async () => {
+    await recordExpense(db, EVENT, {
+      id: 'carne',
+      description: 'Carne',
+      payerId: 'm01',
+      amount: 15_500 as never,
+      participants: everyone,
+    });
+    await recordExpense(db, EVENT, {
+      id: 'mercado',
+      description: 'Mercado (janta)',
+      payerId: 'm02',
+      amount: 15_873 as never,
+      participants: everyone,
+    });
+    await recordExpense(db, EVENT, {
+      id: 'compras',
+      description: 'Compras',
+      payerId: 'caixa',
+      amount: 16_147 as never,
+      participants: everyone,
+    });
+
+    const loaded = await loadEvent(db, EVENT);
+    expect(loaded).not.toBeNull();
+
+    const settlement = settle(loaded!.event, loaded!.members);
+    const forMember = (id: string) => settlement.members.find((m) => m.memberId === id)!;
+
+    // The same numbers the engine produces from the JSON fixture.
+    expect(settlement.total).toBe(47_520);
+    expect(forMember('m01').net).toBe(10_749);
+    expect(forMember('m02').net).toBe(11_119);
+    expect(forMember('caixa').net).toBe(16_140);
+    expect(forMember('m03').charged).toBe(4803);
+    expect(settlement.treasurySurplus).toBe(444);
+    expect(chatSummary(loaded!.event, settlement)).toContain('• Membro 03: R$ 48,03');
+  });
+
+  it('returns null for an event that does not exist', async () => {
+    expect(await loadEvent(db, 'nope')).toBeNull();
+  });
+
+  it('preserves weights, including exclusions', async () => {
+    await recordExpense(db, EVENT, {
+      id: 'cerveja',
+      description: 'Cerveja',
+      payerId: 'm01',
+      amount: 6000 as never,
+      participants: [
+        { memberId: 'm01', weight: 1 },
+        { memberId: 'm02', weight: 2 },
+        { memberId: 'm03', weight: 0 },
+      ],
+    });
+
+    const loaded = await loadEvent(db, EVENT);
+    const participants = [...loaded!.event.expenses[0]!.participants].sort((a, b) =>
+      a.memberId.localeCompare(b.memberId),
+    );
+    expect(participants).toEqual([
+      { memberId: 'm01', weight: 1 },
+      { memberId: 'm02', weight: 2 },
+      { memberId: 'm03', weight: 0 },
+    ]);
+  });
+});
+
+/**
+ * Drizzle reports the failed statement as the message and hangs the Postgres detail off `cause`,
+ * so assert on the constraint the database actually rejected with.
+ */
+async function violation(write: () => Promise<unknown>): Promise<string> {
+  try {
+    await write();
+  } catch (error) {
+    return JSON.stringify((error as { cause?: unknown }).cause ?? error);
+  }
+  throw new Error('Expected the database to reject this write, and it did not');
+}
+
+describe('the database enforces the decisions, not just the code', () => {
+  it('refuses a second open event in the same group (D4)', async () => {
+    const detail = await violation(() =>
+      db.insert(events).values({
+        id: 'churrasco',
+        groupId: GROUP,
+        name: 'Churrasco',
+        date: '2026-09-12',
+      }),
+    );
+    expect(detail).toContain('event_one_open_per_group_idx');
+  });
+
+  it('allows a new event once the previous one is settled', async () => {
+    await closeEvent(db, EVENT);
+    await expect(
+      db.insert(events).values({
+        id: 'churrasco',
+        groupId: GROUP,
+        name: 'Churrasco',
+        date: '2026-09-12',
+      }),
+    ).resolves.not.toThrow();
+  });
+
+  it('refuses a second caixa (D6)', async () => {
+    const detail = await violation(() =>
+      insertMembers(db, GROUP, [{ id: 'caixa2', name: 'Outro Caixa', code: 50, isTreasury: true }]),
+    );
+    expect(detail).toContain('member_group_treasury_idx');
+  });
+
+  it('refuses two members sharing an identification code', async () => {
+    const detail = await violation(() =>
+      insertMembers(db, GROUP, [{ id: 'm11', name: 'Membro 11', code: 1, isTreasury: false }]),
+    );
+    expect(detail).toContain('member_group_code_idx');
+  });
+});
+
+describe('identification codes are never reissued (D7)', () => {
+  it('skips codes held by members who have left', async () => {
+    expect(await nextCode(db, GROUP)).toBe(11);
+
+    await insertMembers(db, GROUP, [
+      { id: 'm11', name: 'Membro 11', code: 11, isTreasury: false, retiredAt: '2026-01-01' },
+    ]);
+
+    expect(await nextCode(db, GROUP)).toBe(12);
+  });
+});
+
+describe('the ledger', () => {
+  it('folds appended entries into balances', async () => {
+    await recordExpense(db, EVENT, {
+      id: 'carne',
+      description: 'Carne',
+      payerId: 'm01',
+      amount: 15_500 as never,
+      participants: everyone,
+    });
+
+    const loaded = await loadEvent(db, EVENT);
+    const settlement = settle(loaded!.event, loaded!.members);
+    await appendEntries(db, GROUP, settlement.entries);
+
+    const balances = await balancesFor(db, GROUP);
+    expect(balances.get('m01')).toBe(13_950); // 155,00 fronted less their own 15,50
+    expect(balances.get('m05')).toBe(-1550);
+
+    const total = [...balances.values()].reduce((sum, value) => sum + value, 0);
+    expect(total).toBe(0);
+  });
+
+  it('accumulates rather than replacing, because entries are only appended', async () => {
+    await appendEntries(db, GROUP, [
+      { memberId: 'm01', kind: 'payment', amount: 4803 as never },
+      { memberId: 'm01', kind: 'adjustment', amount: -3 as never, note: 'ajuste' },
+    ]);
+
+    expect((await balancesFor(db, GROUP)).get('m01')).toBe(4800);
+  });
+});
