@@ -59,6 +59,10 @@ export const members = pgTable(
     isTreasury: boolean('is_treasury').notNull().default(false),
     /** Set when a member leaves. Their code retires with them and is never reissued (D7). */
     retiredAt: timestamp('retired_at', { withTimezone: true }),
+    /** Set when the row was a mistake. Hidden everywhere, never removed (D19). */
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    /** This member's own read link — it lands them on their own amount (D11). */
+    readToken: text('read_token').notNull(),
   },
   (table) => [
     /**
@@ -66,6 +70,7 @@ export const members = pgTable(
      * a departed member's code can never be handed to somebody new.
      */
     uniqueIndex('member_group_code_idx').on(table.groupId, table.code),
+    uniqueIndex('member_read_token_idx').on(table.readToken),
     uniqueIndex('member_group_treasury_idx')
       .on(table.groupId)
       .where(sql`${table.isTreasury}`),
@@ -86,6 +91,12 @@ export const events = pgTable(
     status: eventStatus('status').notNull().default('open'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     settledAt: timestamp('settled_at', { withTimezone: true }),
+    /**
+     * Until this is set, members see "o rateio ainda está sendo fechado" rather than a partial
+     * amount they might pay (D15).
+     */
+    chargesPublishedAt: timestamp('charges_published_at', { withTimezone: true }),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (table) => [
     /**
@@ -94,8 +105,29 @@ export const events = pgTable(
      */
     uniqueIndex('event_one_open_per_group_idx')
       .on(table.groupId)
-      .where(sql`${table.status} = 'open'`),
+      .where(sql`${table.status} = 'open' and ${table.deletedAt} is null`),
     index('event_group_idx').on(table.groupId),
+  ],
+);
+
+/**
+ * Who came (D12). Every expense defaults to this set; per-expense shares are overrides, so
+ * entering a night is a handful of taps rather than one per person per expense.
+ */
+export const eventParticipants = pgTable(
+  'event_participant',
+  {
+    eventId: text('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    memberId: text('member_id')
+      .notNull()
+      .references(() => members.id),
+    weight: integer('weight').notNull().default(1),
+  },
+  (table) => [
+    uniqueIndex('event_participant_idx').on(table.eventId, table.memberId),
+    index('event_participant_event_idx').on(table.eventId),
   ],
 );
 
@@ -114,6 +146,7 @@ export const expenses = pgTable(
     amount: amountCents('amount_cents'),
     receiptUrl: text('receipt_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (table) => [index('expense_event_idx').on(table.eventId)],
 );
@@ -169,4 +202,5 @@ export type MemberRow = typeof members.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
 export type ExpenseRow = typeof expenses.$inferSelect;
 export type ShareRow = typeof shares.$inferSelect;
+export type EventParticipantRow = typeof eventParticipants.$inferSelect;
 export type LedgerEntryRow = typeof ledgerEntries.$inferSelect;
