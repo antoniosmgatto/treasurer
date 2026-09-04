@@ -36,7 +36,7 @@ new entries, never edits — which also answers "who changed this?".
 
 ## D4 — One open event at a time (v0.1)
 
-Codes identify the *member*, not the *charge*. With two events open, an incoming R$48,03 from
+Codes identify the _member_, not the _charge_. With two events open, an incoming R$48,03 from
 member 03 is genuinely ambiguous. Enforced as a model constraint, not a convention.
 
 Revisit at v0.3 with real statement data, using an explicit oldest-charge-first rule.
