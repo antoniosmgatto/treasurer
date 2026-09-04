@@ -22,6 +22,28 @@ const USAGE = `treasurer — settle an event, or bootstrap a club
 Settling is a test harness (D5); seeding is how a club first exists (D18).
 The file shapes are in examples/.`;
 
+/**
+ * A missing or malformed file is a typo, not a crash. Both paths into the CLI read JSON the user
+ * wrote by hand, so both get told what is wrong instead of a stack trace.
+ */
+function readJson(path: string): unknown {
+  let text: string;
+  try {
+    text = readFileSync(path, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new ParseError(`Arquivo não encontrado: ${path}`);
+    }
+    throw error;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new ParseError(`${path} não é um JSON válido`);
+  }
+}
+
 function pad(text: string, width: number): string {
   return text.length >= width ? text : text + ' '.repeat(width - text.length);
 }
@@ -35,7 +57,15 @@ function padStart(text: string, width: number): string {
  * command issues. Members are read from the same JSON the settler already understands.
  */
 async function seed(path: string): Promise<number> {
-  const file = JSON.parse(readFileSync(path, 'utf8')) as {
+  // Seeding the wrong database looks exactly like seeding the right one: a club is created and
+  // links are printed. Say which one before doing it, so a missing DATABASE_URL is visible.
+  console.log(
+    process.env['DATABASE_URL']
+      ? 'Criando o clube no banco remoto (DATABASE_URL)…\n'
+      : 'Criando o clube no banco LOCAL (.data) — DATABASE_URL não está definida.\n',
+  );
+
+  const file = readJson(path) as {
     name?: string;
     members?: { name: string; code?: number; isTreasury?: boolean }[];
   };
@@ -86,7 +116,7 @@ function main(argv: string[]): number {
   const memberFlag = argv.indexOf('--member');
   const memberId = memberFlag === -1 ? undefined : argv[memberFlag + 1];
 
-  const { members, event } = parseEventFile(JSON.parse(readFileSync(path, 'utf8')));
+  const { members, event } = parseEventFile(readJson(path));
   const settlement = settle(event, members);
 
   if (memberId) {
