@@ -16,44 +16,32 @@ describe('settle — the reference event', () => {
     expect(formatBRL(settlement.total)).toBe('R$ 475,20');
   });
 
-  it('pays back the two members who fronted money', () => {
-    // 155,00 fronted − 47,51 own share.
-    expect(formatBRL(forMember('m01').net)).toBe('R$ 107,49');
-    // 158,73 fronted − 47,51 own share − 0,03 flooring remainder they absorb as payer.
-    expect(formatBRL(forMember('m02').net)).toBe('R$ 111,19');
-  });
-
-  it('recovers what the caixa fronted, less the remainder it absorbs', () => {
-    expect(formatBRL(forMember('caixa').net)).toBe('R$ 161,40');
-    expect(forMember('caixa').charged).toBeNull();
-  });
-
-  it('charges everyone else the same share', () => {
-    for (const id of ['m03', 'm04', 'm05', 'm06', 'm07', 'm08', 'm09', 'm10']) {
-      expect(formatBRL(forMember(id).owed)).toBe('R$ 47,51');
+  it('charges everyone the same share, rounded up', () => {
+    // 15,50 + 15,88 + 16,15 — each bill divided by ten and rounded up to the cent.
+    for (const id of ['m04', 'm05', 'm06', 'm07', 'm08', 'm09', 'm10']) {
+      expect(formatBRL(forMember(id).owed)).toBe('R$ 47,53');
     }
   });
 
-  it('writes each identification code into the amount asked for', () => {
-    expect(formatBRL(forMember('m03').charged!)).toBe('R$ 48,03');
-    expect(formatBRL(forMember('m07').charged!)).toBe('R$ 48,07');
-    expect(formatBRL(forMember('m10').charged!)).toBe('R$ 48,10');
+  it('pays back the three members who fronted money, rounding included', () => {
+    // 155,00 fronted − 47,53 own share; the bill divided evenly, so no rounding.
+    expect(formatBRL(forMember('m01').net)).toBe('R$ 107,47');
+    // 158,73 fronted − 47,53 own share + 0,07 the rounding handed him.
+    expect(formatBRL(forMember('m02').net)).toBe('R$ 111,27');
+    // 161,47 fronted − 47,53 own share + 0,03 rounding.
+    expect(formatBRL(forMember('m03').net)).toBe('R$ 113,97');
   });
 
-  it('keeps every charge distinct, which is the entire point', () => {
-    const charged = settlement.members
-      .map((member) => member.charged)
-      .filter((amount): amount is NonNullable<typeof amount> => amount !== null);
-    expect(new Set(charged).size).toBe(charged.length);
-  });
-
-  it('collects the rounding surplus for the caixa, and it is not small', () => {
-    // Eight payers, each rounded up to R$48 plus their code.
-    expect(formatBRL(settlement.treasurySurplus)).toBe('R$ 4,44');
+  it('gives the rounding to the collectors, not to the club', () => {
+    expect(formatBRL(settlement.rounding)).toBe('R$ 0,10');
+    expect(formatBRL(forMember('m02').rounding)).toBe('R$ 0,07');
+    expect(formatBRL(forMember('m03').rounding)).toBe('R$ 0,03');
+    // He fronted a bill that divided evenly, so there was nothing to round.
+    expect(forMember('m01').rounding).toBe(0);
   });
 
   it('shows every line to every member, including the ones they paid nothing for', () => {
-    const lines = forMember('m03').lines;
+    const lines = forMember('m04').lines;
     expect(lines.map((line) => line.description)).toEqual(['Carne', 'Mercado (janta)', 'Compras']);
     expect(lines.every((line) => !line.excluded)).toBe(true);
   });
@@ -64,18 +52,24 @@ describe('settle — invariants', () => {
     expect(sum(settlement.members.map((member) => member.net))).toBe(0);
   });
 
-  it('the surplus is exactly what is charged above what is owed', () => {
-    const owed = sum(settlement.members.filter((m) => m.owed > 0).map((m) => m.owed));
-    const charged = sum(
-      settlement.members.filter((m) => m.charged !== null).map((m) => m.charged!),
-    );
-    expect(charged - owed).toBe(settlement.treasurySurplus);
+  it('every bill is covered by the shares charged for it', () => {
+    for (const expense of acampamento.expenses) {
+      const charged = sum(
+        settlement.entries
+          .filter((entry) => entry.expenseId === expense.id && entry.kind === 'share')
+          .map((entry) => -entry.amount as typeof entry.amount),
+      );
+      expect(charged).toBeGreaterThanOrEqual(expense.amount);
+    }
   });
 
-  it('nobody is ever asked for less than they owe', () => {
-    for (const member of settlement.members) {
-      if (member.charged !== null) expect(member.charged).toBeGreaterThanOrEqual(member.owed);
-    }
+  it('the rounding is exactly what was collected above the bills', () => {
+    const charged = sum(
+      settlement.entries
+        .filter((entry) => entry.kind === 'share')
+        .map((entry) => -entry.amount as typeof entry.amount),
+    );
+    expect(charged - settlement.total).toBe(settlement.rounding);
   });
 });
 
@@ -102,7 +96,14 @@ describe('settle — exclusions are visible', () => {
     const result = settle(withOwnBeer, members);
     const excluded = result.members.find((member) => member.memberId === 'm03');
     expect(excluded?.lines).toEqual([
-      { expenseId: 'cerveja', description: 'Cerveja', amount: 0, excluded: true, fronted: 0 },
+      {
+        expenseId: 'cerveja',
+        description: 'Cerveja',
+        amount: 0,
+        excluded: true,
+        fronted: 0,
+        rounding: 0,
+      },
     ]);
     expect(excluded?.owed).toBe(0);
   });
@@ -118,10 +119,8 @@ describe('settle — random events always balance', () => {
   it('credits equal debits for a thousand generated events', () => {
     for (let round = 0; round < 1000; round++) {
       const participants = members
-        .filter((member) => !member.isTreasury)
         .slice(0, 2 + random(9))
         .map((member) => ({ memberId: member.id, weight: random(3) }));
-      if (participants.every((participant) => participant.weight === 0)) continue;
 
       const payers = [...members];
       const event: Event = {
@@ -145,29 +144,16 @@ describe('settle — random events always balance', () => {
 });
 
 describe('settle — validation', () => {
-  it('rejects a caixa that carries a share', () => {
-    const broken: Event = {
-      ...acampamento,
-      expenses: [
-        {
-          ...acampamento.expenses[0]!,
-          participants: [{ memberId: 'caixa', weight: 1 }],
-        },
-      ],
-    };
-    expect(() => settle(broken, members)).toThrow(/caixa cannot take a share/);
-  });
-
   it('rejects two members sharing an identification code', () => {
-    const clashing: Member[] = [
-      ...members.slice(0, -1),
-      { id: 'm11', name: 'Membro 11', code: 1, isTreasury: false },
-    ];
+    const clashing: Member[] = [...members.slice(0, -1), { id: 'm11', name: 'Membro 11', code: 1 }];
     expect(() => settle(acampamento, clashing)).toThrow(/Code 1 is shared/);
   });
 
-  it('rejects a club with no caixa', () => {
-    const noTreasury = members.filter((member) => !member.isTreasury);
-    expect(() => settle(acampamento, noTreasury)).toThrow(/No treasury row/);
+  it('rejects an expense whose payer is nobody', () => {
+    const broken: Event = {
+      ...acampamento,
+      expenses: [{ ...acampamento.expenses[0]!, payerId: 'ninguem' }],
+    };
+    expect(() => settle(broken, members)).toThrow(/unknown payer/);
   });
 });

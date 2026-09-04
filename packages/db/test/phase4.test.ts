@@ -36,10 +36,9 @@ beforeEach(async () => {
     .insert(groups)
     .values({ id: GROUP, name: 'Clube', writeToken: newToken(), readToken: newToken() });
   await insertMembers(db, GROUP, [
-    { id: 'caixa', name: 'Caixa', code: 99, isTreasury: true },
-    { id: 'm01', name: 'Membro 01', code: 1, isTreasury: false },
-    { id: 'm02', name: 'Membro 02', code: 2, isTreasury: false },
-    { id: 'm03', name: 'Membro 03', code: 3, isTreasury: false },
+    { id: 'm01', name: 'Membro 01', code: 1 },
+    { id: 'm02', name: 'Membro 02', code: 2 },
+    { id: 'm03', name: 'Membro 03', code: 3 },
   ]);
   await db
     .insert(events)
@@ -130,10 +129,10 @@ describe('an event with no roster saved', () => {
     // Three members, R$200,99. Previously every payer netted zero and the rest never appeared.
     expect(settlement.members).toHaveLength(3);
     expect(settlement.total).toBe(20099);
-    expect(settlement.members.find((m) => m.memberId === 'm03')!.owed).toBe(6699);
+    // 200,99 three ways is 66,996 each, rounded up so the three shares cover the bill.
+    expect(settlement.members.find((m) => m.memberId === 'm03')!.owed).toBe(6700);
+    expect(settlement.rounding).toBe(1);
 
-    // The caixa never takes a share (D6).
-    expect(settlement.members.some((m) => m.memberId === 'caixa')).toBe(false);
     expect(settlement.members.reduce((total, m) => total + m.net, 0)).toBe(0);
   });
 
@@ -248,12 +247,12 @@ describe('recording a payment (D13)', () => {
     const settlement = settle(loaded!.event, loaded!.members);
     await appendEntries(db, GROUP, settlement.entries);
 
-    const charged = settlement.members.find((m) => m.memberId === 'm02')!.charged!;
-    await recordPayment(db, GROUP, { memberId: 'm02', eventId: EVENT, amount: charged });
+    const owed = settlement.members.find((m) => m.memberId === 'm02')!.owed;
+    await recordPayment(db, GROUP, { memberId: 'm02', eventId: EVENT, amount: owed });
 
-    // Owed 45,00 exactly, so the charge is 45,02: the cents are the code, never the amount (D1).
-    expect(charged).toBe(4502);
-    expect((await balancesFor(db, GROUP)).get('m02')).toBe(2);
+    // Owed 45,00 exactly, and that is what is asked for: no code lives in the amount.
+    expect(owed).toBe(4500);
+    expect((await balancesFor(db, GROUP)).get('m02')).toBe(0);
   });
 });
 
@@ -275,9 +274,9 @@ describe('reimbursing whoever fronted the money', () => {
     const settlement = settle(loaded!.event, loaded!.members);
     await appendEntries(db, GROUP, settlement.entries);
 
-    // m01 fronted 90,00 and consumed 45,00 of it, so the caixa owes them the other half.
+    // m01 fronted 90,00 and consumed 45,00 of it, so the other half comes back to them.
     const fronter = settlement.members.find((m) => m.memberId === 'm01')!;
-    expect(fronter.charged).toBeNull();
+    expect(fronter.owed).toBe(0);
     expect(fronter.net).toBe(4500);
     expect((await balancesFor(db, GROUP)).get('m01')).toBe(4500);
 
@@ -319,13 +318,11 @@ describe('reimbursing whoever fronted the money', () => {
 });
 
 describe('reissuing the links', () => {
-  it('reprints what seed printed once, treasury excluded', async () => {
+  it('reprints what seed printed once', async () => {
     const [only] = await allGroups(db);
     const found = await linksFor(db, only!.id);
 
     expect(found?.links.map((link) => link.name)).toEqual(['Membro 01', 'Membro 02', 'Membro 03']);
-    // The caixa is a member row but never a person with a link (D6).
-    expect(found?.links.some((link) => link.name === 'Caixa')).toBe(false);
     expect(found?.writeToken).toHaveLength(22);
   });
 

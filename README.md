@@ -1,7 +1,7 @@
 # Treasurer
 
-Shared expenses for small groups — settled through a single treasury, and reconciled against the
-bank statement automatically.
+Shared expenses for small groups — every bill collected by whoever paid it, and every share
+recorded so nobody has to scroll a group chat to find out who is still open.
 
 > Status: early. The settlement engine is being built first; the web app follows.
 
@@ -24,25 +24,21 @@ Treasurer is built around problem 3, because that is the one no expense splitter
 
 ## How it works
 
-**One treasury, hub and spoke.** All money flows through a single account. Members pay the
-treasury; the treasury reimburses whoever fronted money. No n-to-n transfer optimization — that
-web of little debts is the mess being replaced. The treasury itself is just an ordinary member
-row that never charges itself, and its running balance _is_ the group's fund.
+**Whoever fronted a bill collects it.** Each expense is credited to the person who paid for it and
+divided among the people it was for. Events are isolated: no balance is carried from one to the
+next, because the only question that matters is whether _this_ trip is settled.
 
-**Identification codes in the cents.** Each member has a permanent two-digit code. Their charge
-is the per-head amount rounded up to the whole unit, with their code as the cents:
+**Shares round up, so a collector is never short.** A R$158,73 bill split ten ways charges R$15,88
+each, and the seven centavos over go back to the person who put R$158,73 of his own money in.
+Those centavos are a line of their own, never folded into a share (D1).
 
-```
-per-head 15.87  →  member 03 is charged 16.03
-                   member 11 is charged 16.11
-```
+**Cents, never floats.** All money is integer cents end to end, and every event balances to the
+cent.
 
-Every incoming line in the statement is now unambiguously attributable, no matter whose account
-it came from. The few cents of surplus land in the treasury.
-
-**Cents, never floats.** All money is integer cents end to end. Shares are floored per member
-and the remainder is absorbed by the person who fronted the expense, so every event balances to
-the cent.
+**Identification codes.** Each member has a permanent two-digit code, never reused once retired.
+It identifies them in the app today; a collector who links a bank account can later write it into
+the cents of their own charges, so an incoming transfer names its payer whatever account it
+arrived from.
 
 **Weights per expense.** Default 1. Zero excludes someone who brought their own. Two covers a
 guest. The same field handles half portions — and exclusions are always shown, never silently

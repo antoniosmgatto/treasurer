@@ -47,7 +47,6 @@ function readMember(raw: unknown, index: number): Member {
     id: readString(record['id'], `${where}.id`),
     name: readString(record['name'], `${where}.name`),
     code,
-    isTreasury: record['isTreasury'] === true,
   };
   if (typeof record['retiredAt'] === 'string') member.retiredAt = record['retiredAt'];
   return member;

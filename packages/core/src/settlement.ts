@@ -1,4 +1,3 @@
-import { chargeFor, surplusOf } from './codes.js';
 import { entriesForEvent, type LedgerEntry } from './ledger.js';
 import { cents, sum, ZERO, type Cents } from './money.js';
 import type { Event, Member, MemberId } from './types.js';
@@ -13,6 +12,8 @@ export interface BreakdownLine {
   excluded: boolean;
   /** What the member fronted for this expense, if anything. */
   fronted: Cents;
+  /** What rounding the shares up handed the member, as the one collecting this bill. */
+  rounding: Cents;
 }
 
 export interface MemberSettlement {
@@ -21,12 +22,10 @@ export interface MemberSettlement {
   code: number;
   /** Positive: the member receives. Negative: the member pays. */
   net: Cents;
-  /** The fair share, zero when the member is owed money. Sums to zero across the event. */
+  /** What to ask the member for, zero when they are owed money instead. */
   owed: Cents;
-  /** What to actually ask for, carrying the identification code. Null when nothing is due. */
-  charged: Cents | null;
-  /** charged − owed, and it goes to the caixa. */
-  surplus: Cents;
+  /** The centavos rounding up handed them across the event, for the bills they collect. */
+  rounding: Cents;
   lines: BreakdownLine[];
 }
 
@@ -34,8 +33,8 @@ export interface Settlement {
   eventId: string;
   total: Cents;
   members: MemberSettlement[];
-  /** The rounding the club collects on top of the fair shares. */
-  treasurySurplus: Cents;
+  /** What rounding up added across the whole event. It sits with the collectors, not with us. */
+  rounding: Cents;
   entries: LedgerEntry[];
 }
 
@@ -51,7 +50,7 @@ export function settle(event: Event, members: readonly Member[]): Settlement {
   }
 
   const settlements: MemberSettlement[] = [];
-  let treasurySurplus = 0;
+  let eventRounding = 0;
 
   for (const member of members) {
     const memberEntries = byMember.get(member.id) ?? [];
@@ -59,9 +58,10 @@ export function settle(event: Event, members: readonly Member[]): Settlement {
 
     const net = sum(memberEntries.map((entry) => entry.amount));
     const owed = net < 0 ? cents(-net) : ZERO;
-    const charged = owed > 0 && !member.isTreasury ? chargeFor(owed, member.code) : null;
-    const surplus = charged === null ? ZERO : surplusOf(owed, member.code);
-    treasurySurplus += surplus;
+    const rounding = sum(
+      memberEntries.filter((entry) => entry.kind === 'rounding').map((entry) => entry.amount),
+    );
+    eventRounding += rounding;
 
     settlements.push({
       memberId: member.id,
@@ -69,8 +69,7 @@ export function settle(event: Event, members: readonly Member[]): Settlement {
       code: member.code,
       net,
       owed,
-      charged,
-      surplus,
+      rounding,
       lines: linesFor(event, memberEntries),
     });
   }
@@ -79,7 +78,7 @@ export function settle(event: Event, members: readonly Member[]): Settlement {
     eventId: event.id,
     total: sum(event.expenses.map((expense) => expense.amount)),
     members: settlements,
-    treasurySurplus: cents(treasurySurplus),
+    rounding: cents(eventRounding),
     entries,
   };
 }
@@ -93,6 +92,7 @@ function linesFor(event: Event, memberEntries: readonly LedgerEntry[]): Breakdow
 
     const share = forExpense.find((entry) => entry.kind === 'share');
     const front = forExpense.find((entry) => entry.kind === 'front');
+    const rounding = forExpense.find((entry) => entry.kind === 'rounding');
     const amount = share ? cents(-share.amount) : ZERO;
 
     lines.push({
@@ -101,6 +101,7 @@ function linesFor(event: Event, memberEntries: readonly LedgerEntry[]): Breakdow
       amount,
       excluded: share !== undefined && amount === 0,
       fronted: front ? front.amount : ZERO,
+      rounding: rounding ? rounding.amount : ZERO,
     });
   }
 

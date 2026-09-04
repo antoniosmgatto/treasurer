@@ -55,8 +55,6 @@ export const members = pgTable(
     name: text('name').notNull(),
     /** Two-digit identification code, 1–99. */
     code: integer('code').notNull(),
-    /** The caixa. Exactly one per group, never a participant (D6). */
-    isTreasury: boolean('is_treasury').notNull().default(false),
     /** Set when a member leaves. Their code retires with them and is never reissued (D7). */
     retiredAt: timestamp('retired_at', { withTimezone: true }),
     /** Set when the row was a mistake. Hidden everywhere, never removed (D19). */
@@ -71,9 +69,6 @@ export const members = pgTable(
      */
     uniqueIndex('member_group_code_idx').on(table.groupId, table.code),
     uniqueIndex('member_read_token_idx').on(table.readToken),
-    uniqueIndex('member_group_treasury_idx')
-      .on(table.groupId)
-      .where(sql`${table.isTreasury}`),
     index('member_group_idx').on(table.groupId),
   ],
 );

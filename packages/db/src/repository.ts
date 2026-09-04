@@ -28,7 +28,6 @@ function toMember(row: MemberRow): Member {
     id: row.id,
     name: row.name,
     code: row.code,
-    isTreasury: row.isTreasury,
   };
   if (row.retiredAt) member.retiredAt = row.retiredAt.toISOString();
   return member;
@@ -93,14 +92,12 @@ export async function loadEvent(
    * split silently collapse: with no participants, each expense lands straight back on whoever
    * paid it and the whole event settles to zero.
    *
-   * The caixa is never a participant (D6), and a retired member is not on a current event (D7).
+   * A retired member is not on a current event (D7).
    */
   const roster =
     rosterRows.length > 0
       ? rosterRows.map((row) => ({ memberId: row.memberId, weight: row.weight }))
-      : memberRows
-          .filter((row) => !row.isTreasury && !row.retiredAt)
-          .map((row) => ({ memberId: row.id, weight: 1 }));
+      : memberRows.filter((row) => !row.retiredAt).map((row) => ({ memberId: row.id, weight: 1 }));
 
   return {
     members: memberRows.map(toMember),
@@ -151,7 +148,6 @@ export async function insertMembers(
       groupId,
       name: member.name,
       code: member.code,
-      isTreasury: member.isTreasury,
       readToken: newToken(),
       retiredAt: member.retiredAt ? new Date(member.retiredAt) : null,
     })),
@@ -253,9 +249,11 @@ export async function createGroup(
   return {
     groupId,
     writeToken,
-    links: created
-      .filter((row) => !row.isTreasury)
-      .map((row) => ({ name: row.name, code: row.code, url: `/e/${row.readToken}` })),
+    links: created.map((row) => ({
+      name: row.name,
+      code: row.code,
+      url: `/e/${row.readToken}`,
+    })),
   };
 }
 
@@ -283,9 +281,7 @@ export async function linksFor(db: Db, groupId: string): Promise<CreatedGroup | 
   return {
     groupId,
     writeToken: group.writeToken,
-    links: rows
-      .filter((row) => !row.isTreasury)
-      .map((row) => ({ name: row.name, code: row.code, url: `/e/${row.readToken}` })),
+    links: rows.map((row) => ({ name: row.name, code: row.code, url: `/e/${row.readToken}` })),
   };
 }
 
@@ -339,7 +335,7 @@ export async function addMember(
 ): Promise<{ id: string; code: number }> {
   const code = await nextCode(db, groupId);
   const id = newId();
-  await insertMembers(db, groupId, [{ id, name, code, isTreasury: false }]);
+  await insertMembers(db, groupId, [{ id, name, code }]);
   return { id, code };
 }
 

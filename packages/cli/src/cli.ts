@@ -76,7 +76,7 @@ async function seed(path: string): Promise<number> {
 
   const file = readJson(path) as {
     name?: string;
-    members?: { name: string; code?: number; isTreasury?: boolean }[];
+    members?: { name: string; code?: number }[];
   };
   if (!Array.isArray(file.members)) {
     console.error('Expected { "name": "...", "members": [...] }');
@@ -92,7 +92,6 @@ async function seed(path: string): Promise<number> {
       members: file.members.map((member, index) => ({
         name: member.name,
         code: member.code ?? index,
-        isTreasury: member.isTreasury === true,
       })),
     });
 
@@ -197,7 +196,7 @@ function main(argv: string[]): number {
   const width = Math.max(...settlement.members.map((member) => member.name.length), 6);
   console.log(`${event.name} — ${event.date} — total ${formatBRL(settlement.total)}\n`);
   console.log(
-    `${pad('Membro', width)}  ${padStart('cód', 4)}  ${padStart('parte', 12)}  ${padStart('a pagar', 12)}  ${padStart('recebe', 12)}`,
+    `${pad('Membro', width)}  ${padStart('cód', 4)}  ${padStart('a pagar', 12)}  ${padStart('recebe', 12)}`,
   );
   for (const member of settlement.members) {
     console.log(
@@ -205,13 +204,12 @@ function main(argv: string[]): number {
         pad(member.name, width),
         padStart(formatCode(member.code), 4),
         padStart(member.owed > 0 ? formatBRL(member.owed) : '—', 12),
-        padStart(member.charged === null ? '—' : formatBRL(member.charged), 12),
         padStart(member.net > 0 ? formatBRL(member.net) : '—', 12),
       ].join('  '),
     );
   }
 
-  console.log(`\nArredondamento pro caixa: ${formatBRL(settlement.treasurySurplus)}`);
+  console.log(`\nArredondamento pra cima: ${formatBRL(settlement.rounding)}`);
   console.log(`\n${'-'.repeat(40)}\n`);
   console.log(chatSummary(event, settlement));
   return 0;
