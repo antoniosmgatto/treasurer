@@ -79,3 +79,87 @@ with D3, alterations are impossible rather than merely discouraged.
 Participation is assigned by the treasurer after the fact. Recording commitment, absence, and the
 rule connecting them is a policy engine, and the policy does not exist yet. Ship, run one real
 event, and let an actual argument specify it.
+
+---
+
+# Phase 4 — the screens
+
+## D11 — The read link identifies the member, not the group
+
+A member opening a link to fifteen rows and hunting for their own name is the friction that sends
+people back to the group chat. Their link lands on their own amount; the full event is one tap
+away, and every member can see what everyone owes — a ledger nobody can audit is the problem
+being solved, not the solution.
+
+## D12 — The event has a roster; expense participants are overrides
+
+Participants belong to the expense, because exclusions are per-expense. But entering three
+expenses against ten people is thirty taps on a phone after a ride, and that gets done once.
+
+So the event carries a roster of who came, every expense defaults to it, and per-expense
+exclusion is an override touched two or three times a night. The engine is unchanged: the
+repository expands the roster into per-expense participants before it hands anything over.
+
+## D13 — Payments are recorded in Phase 4, by hand
+
+The POC is finished when an event balances and everyone has paid. Without somewhere to record
+that money arrived, the treasurer settles up in WhatsApp again and this is a calculator.
+
+The treasurer taps a member, a `payment` entry is appended, the member's link says `quitado`. No
+import, no matching — that is v0.3.
+
+## D14 — The write token becomes a cookie on first visit
+
+A credential in the URL bar lands in history, in the browser's recent list, and — realistically —
+in a screenshot when the treasurer shows somebody the app. The token is exchanged for an httpOnly
+cookie and the URL is cleaned by redirect. The link stays the way in; it stops being on screen.
+
+## D15 — `charges_published_at`, not a state machine
+
+Charges exist the moment the first expense is saved. A member opening their link mid-entry would
+see a partial amount, pay it, and create the exact reconciliation mess this app exists to remove.
+
+One nullable timestamp. Before it is set, the member's link says the rateio is still being closed
+and shows no amount. `open` and `settled` remain the only states.
+
+## D16 — Server components and server actions
+
+Six screens, used a few times a month, often on bad rural signal, by people who will not install
+anything. Pages are rendered on the server and read through `@treasurer/db`; writes are server
+actions. No client state library, no form library. The member's page is a document, not an
+application.
+
+## D17 — Tailwind and shadcn/ui
+
+Tailwind v4, which needs no config file, with shadcn/ui components copied into the repo rather
+than imported as a dependency — so they can be edited like any other code here.
+
+## D18 — The CLI bootstraps, the admin page operates
+
+The first group cannot be created through a page whose access requires a token that group would
+have issued. So `treasurer seed` creates the group, the caixa, the members and their links; the
+admin page handles what happens afterwards, when there is no terminal — somebody joined, somebody
+left, somebody lost their link. Both write through the same repository functions.
+
+## D19 — Soft delete everywhere; nothing is ever destroyed
+
+No row is ever removed. Members, expenses and events carry a `deleted_at` and disappear from the
+places that would offer them, while remaining in the history that referenced them.
+
+Two distinct ideas, deliberately kept apart:
+
+- `retired_at` — a member left the club. Legitimate history; their code stays spent forever (D7),
+  and they remain visible on the events they took part in.
+- `deleted_at` — the row was a mistake. Hidden everywhere, still recoverable.
+
+Deleting an expense that has already produced ledger entries appends reversing entries rather
+than removing the originals, because the ledger is append-only (D3). A correction is always
+something added, never something erased.
+
+## D20 — Amounts are typed as text
+
+`<input type="number">` fights the comma on a Brazilian keyboard, lets a scroll wheel change a
+value, and treats `158.73` as a different number than the person meant. A text input with
+`inputMode="decimal"` is parsed by `parseBRL`, which already accepts every shape a person types,
+and the parsed amount is echoed back before saving. A failed parse names the field; it never
+rounds to something plausible.

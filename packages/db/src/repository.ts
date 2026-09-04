@@ -6,11 +6,13 @@ import {
   type LedgerEntry,
   type Member,
 } from '@treasurer/core';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
-import { newId } from './ids.js';
+import { newId, newToken } from './ids.js';
 import {
+  eventParticipants,
   events,
+  groups,
   expenses,
   ledgerEntries,
   members,
@@ -32,6 +34,11 @@ function toMember(row: MemberRow): Member {
   return member;
 }
 
+/** Members still on the roster: not deleted (D19). Retired members stay, for past events. */
+function liveMembers(groupId: string) {
+  return and(eq(members.groupId, groupId), isNull(members.deletedAt));
+}
+
 /**
  * Loads everything the engine needs to settle one event, as the same plain objects it takes from
  * a JSON file. The engine never learns that a database exists.
@@ -40,19 +47,23 @@ export async function loadEvent(
   db: Db,
   eventId: string,
 ): Promise<{ members: Member[]; event: Event } | null> {
-  const [eventRow] = await db.select().from(events).where(eq(events.id, eventId)).limit(1);
+  const [eventRow] = await db
+    .select()
+    .from(events)
+    .where(and(eq(events.id, eventId), isNull(events.deletedAt)))
+    .limit(1);
   if (!eventRow) return null;
 
   const memberRows = await db
     .select()
     .from(members)
-    .where(eq(members.groupId, eventRow.groupId))
+    .where(liveMembers(eventRow.groupId))
     .orderBy(asc(members.code));
 
   const expenseRows = await db
     .select()
     .from(expenses)
-    .where(eq(expenses.eventId, eventId))
+    .where(and(eq(expenses.eventId, eventId), isNull(expenses.deletedAt)))
     .orderBy(asc(expenses.createdAt), asc(expenses.id));
 
   const expenseIds = expenseRows.map((row) => row.id);
@@ -69,9 +80,16 @@ export async function loadEvent(
     else sharesByExpense.set(row.expenseId, [participant]);
   }
 
+  // D12: the roster is the default. An expense with its own shares overrides it entirely.
+  const rosterRows = await db
+    .select()
+    .from(eventParticipants)
+    .where(eq(eventParticipants.eventId, eventId));
+  const roster = rosterRows.map((row) => ({ memberId: row.memberId, weight: row.weight }));
+
   return {
     members: memberRows.map(toMember),
-    event: toEvent(eventRow, expenseRows, sharesByExpense),
+    event: toEvent(eventRow, expenseRows, sharesByExpense, roster),
   };
 }
 
@@ -85,6 +103,7 @@ function toEvent(
     receiptUrl: string | null;
   }[],
   sharesByExpense: ReadonlyMap<string, { memberId: string; weight: number }[]>,
+  roster: readonly { memberId: string; weight: number }[],
 ): Event {
   return {
     id: row.id,
@@ -97,7 +116,7 @@ function toEvent(
         description: expenseRow.description,
         payerId: expenseRow.payerId,
         amount: cents(expenseRow.amount),
-        participants: sharesByExpense.get(expenseRow.id) ?? [],
+        participants: sharesByExpense.get(expenseRow.id) ?? roster,
       };
       if (expenseRow.receiptUrl) expense.receiptUrl = expenseRow.receiptUrl;
       return expense;
@@ -118,9 +137,171 @@ export async function insertMembers(
       name: member.name,
       code: member.code,
       isTreasury: member.isTreasury,
+      readToken: newToken(),
       retiredAt: member.retiredAt ? new Date(member.retiredAt) : null,
     })),
   );
+}
+
+/** Resolves a member's own read link (D11) to the member and the group's open event. */
+export async function memberByReadToken(
+  db: Db,
+  token: string,
+): Promise<{ member: Member; groupId: string } | null> {
+  const [row] = await db
+    .select()
+    .from(members)
+    .where(and(eq(members.readToken, token), isNull(members.deletedAt)))
+    .limit(1);
+  return row ? { member: toMember(row), groupId: row.groupId } : null;
+}
+
+export async function openEventFor(db: Db, groupId: string): Promise<EventRow | null> {
+  const [row] = await db
+    .select()
+    .from(events)
+    .where(and(eq(events.groupId, groupId), eq(events.status, 'open'), isNull(events.deletedAt)))
+    .limit(1);
+  return row ?? null;
+}
+
+/** D15: until this is set, members are shown no amount at all. */
+export async function publishCharges(db: Db, eventId: string): Promise<void> {
+  await db.update(events).set({ chargesPublishedAt: new Date() }).where(eq(events.id, eventId));
+}
+
+export async function setRoster(
+  db: Db,
+  eventId: string,
+  roster: readonly { memberId: string; weight: number }[],
+): Promise<void> {
+  await db.delete(eventParticipants).where(eq(eventParticipants.eventId, eventId));
+  if (roster.length === 0) return;
+  await db
+    .insert(eventParticipants)
+    .values(roster.map((entry) => ({ eventId, memberId: entry.memberId, weight: entry.weight })));
+}
+
+/**
+ * D19: nothing is destroyed. An expense that already produced ledger entries keeps them and gains
+ * reversing ones, because the ledger only ever grows (D3).
+ */
+export async function softDeleteExpense(db: Db, groupId: string, expenseId: string): Promise<void> {
+  const existing = await db
+    .select()
+    .from(ledgerEntries)
+    .where(eq(ledgerEntries.expenseId, expenseId));
+
+  await db.update(expenses).set({ deletedAt: new Date() }).where(eq(expenses.id, expenseId));
+
+  if (existing.length > 0) {
+    await appendEntries(
+      db,
+      groupId,
+      existing.map((entry) => ({
+        memberId: entry.memberId,
+        kind: 'adjustment' as const,
+        amount: cents(-entry.amount),
+        eventId: entry.eventId ?? undefined,
+        expenseId: entry.expenseId ?? undefined,
+        note: 'estorno de despesa removida',
+      })),
+    );
+  }
+}
+
+export interface CreatedGroup {
+  groupId: string;
+  writeToken: string;
+  links: { name: string; code: number; url: string }[];
+}
+
+/** D18: the CLI bootstraps a club, because the admin page needs a token this call issues. */
+export async function createGroup(
+  db: Db,
+  input: { name: string; members: readonly Omit<Member, 'id'>[] },
+): Promise<CreatedGroup> {
+  const groupId = newId();
+  const writeToken = newToken();
+
+  await db.insert(groups).values({
+    id: groupId,
+    name: input.name,
+    writeToken,
+    readToken: newToken(),
+  });
+
+  const rows = input.members.map((member) => ({ ...member, id: newId() }));
+  await insertMembers(db, groupId, rows);
+
+  const created = await db.select().from(members).where(eq(members.groupId, groupId));
+  return {
+    groupId,
+    writeToken,
+    links: created
+      .filter((row) => !row.isTreasury)
+      .map((row) => ({ name: row.name, code: row.code, url: `/e/${row.readToken}` })),
+  };
+}
+
+export async function groupByWriteToken(db: Db, token: string): Promise<string | null> {
+  const [row] = await db
+    .select({ id: groups.id })
+    .from(groups)
+    .where(eq(groups.writeToken, token))
+    .limit(1);
+  return row?.id ?? null;
+}
+
+export async function membersOf(db: Db, groupId: string): Promise<Member[]> {
+  const rows = await db
+    .select()
+    .from(members)
+    .where(liveMembers(groupId))
+    .orderBy(asc(members.code));
+  return rows.map(toMember);
+}
+
+export async function openEvent(
+  db: Db,
+  input: { groupId: string; name: string; date: string },
+): Promise<string> {
+  const id = newId();
+  await db
+    .insert(events)
+    .values({ id, groupId: input.groupId, name: input.name, date: input.date });
+  return id;
+}
+
+export async function addMember(
+  db: Db,
+  groupId: string,
+  name: string,
+): Promise<{ id: string; code: number }> {
+  const code = await nextCode(db, groupId);
+  const id = newId();
+  await insertMembers(db, groupId, [{ id, name, code, isTreasury: false }]);
+  return { id, code };
+}
+
+export async function retireMember(db: Db, memberId: string): Promise<void> {
+  await db.update(members).set({ retiredAt: new Date() }).where(eq(members.id, memberId));
+}
+
+/** Records money arriving from a member (D13). */
+export async function recordPayment(
+  db: Db,
+  groupId: string,
+  input: { memberId: string; eventId: string; amount: Cents },
+): Promise<void> {
+  await appendEntries(db, groupId, [
+    {
+      memberId: input.memberId,
+      kind: 'payment',
+      amount: input.amount,
+      eventId: input.eventId,
+    },
+  ]);
 }
 
 /**

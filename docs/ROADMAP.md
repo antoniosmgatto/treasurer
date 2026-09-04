@@ -62,15 +62,18 @@ the engine is unchanged — it takes the same plain objects either way.
 
 ---
 
-## Phase 4 — The screens
+## Phase 4 — The screens ✅
 
-The smallest UI that replaces the JSON file. Next.js, Portuguese labels.
+Next.js App Router, server-rendered, pt-BR labels, shadcn/ui.
 
-- See an event: who fronted what, what each person owes
-- Add an expense, pick who's in, adjust weights
-- One member's own view: what they owe and why, including the lines they were excluded from
+- `/painel` — the treasurer's event: roster, expenses, the settlement table, closing the rateio,
+  and recording that money arrived
+- `/e/[token]` — a member's own link, landing on their own amount with the rounding disclosed
+- `/painel/membros` — add a member, retire one; the CLI still bootstraps the club
+- `/acesso/[token]` — spends the write token for a cookie and redirects to a clean URL
 
-**Done when:** you can run a whole event without touching a text editor.
+**Done when:** ✅ a whole event runs without touching a text editor — walked end to end in a
+browser: create, roster, expenses, close, member view, payment, quitado.
 
 ---
 

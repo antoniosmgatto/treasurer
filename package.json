@@ -9,12 +9,14 @@
   "scripts": {
     "build": "tsc --build",
     "clean": "tsc --build --clean",
-    "typecheck": "tsc --build && tsc -p tsconfig.test.json",
+    "typecheck": "tsc --build && tsc -p tsconfig.test.json && pnpm --filter @treasurer/web typecheck",
     "test": "tsc --build && vitest run",
     "test:watch": "tsc --build && vitest",
     "cli": "pnpm build && node packages/cli/dist/cli.js",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "lint": "pnpm --filter @treasurer/web lint",
+    "dev": "pnpm --filter @treasurer/web dev"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
