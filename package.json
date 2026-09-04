@@ -7,13 +7,14 @@
     "node": ">=22"
   },
   "scripts": {
-    "typecheck": "tsc --build && tsc -p tsconfig.test.json",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
     "build": "tsc --build",
-    "cli": "pnpm build && node packages/cli/dist/cli.js"
+    "clean": "tsc --build --clean",
+    "typecheck": "tsc --build && tsc -p tsconfig.test.json",
+    "test": "tsc --build && vitest run",
+    "test:watch": "tsc --build && vitest",
+    "cli": "pnpm build && node packages/cli/dist/cli.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
