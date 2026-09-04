@@ -59,7 +59,17 @@ Prints the per-member table, the amount to ask each person for, and a summary re
 into a group chat. `--member m03` shows one person's own breakdown, rounding included.
 
 For the web app, `pnpm dev` runs it against a Postgres in a local file — no database to install
-and no connection string to set. To put it online, see [`docs/DEPLOY.md`](docs/DEPLOY.md).
+and no connection string to set. That file is single-writer, though, so the dev server and the CLI
+cannot both use it at once. To run them together, start a real one:
+
+```sh
+docker compose up -d
+cp .env.example .env.local && set -a && source .env.local && set +a
+pnpm cli seed examples/club.json   # prints the links to open
+pnpm dev
+```
+
+To put it online, see [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## Roadmap
 

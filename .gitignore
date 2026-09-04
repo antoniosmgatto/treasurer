@@ -4,12 +4,13 @@ dist/
 coverage/
 *.tsbuildinfo
 
+# Secrets stay out; the example is the one env file that is committed.
+# Keep this negation last among the .env rules — a later broad `.env*` would undo it.
 .env
 .env.*
 !.env.example
 
 .vercel/
-dist/
 
 # Real member data never enters the repository (D8).
 *.private.json
@@ -21,5 +22,3 @@ data/
 # Next.js build output and generated agent guidance.
 apps/web/.next/
 apps/web/.playwright-mcp/
-.vercel
-.env*

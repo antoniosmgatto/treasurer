@@ -163,3 +163,33 @@ value, and treats `158.73` as a different number than the person meant. A text i
 `inputMode="decimal"` is parsed by `parseBRL`, which already accepts every shape a person types,
 and the parsed amount is echoed back before saving. A failed parse names the field; it never
 rounds to something plausible.
+
+## D21 — Docker Postgres for development, PGlite for tests
+
+PGlite was chosen so that nothing had to be installed and no credentials existed (D8). That still
+holds for the test suite, which opens an in-memory PGlite per test file: perfectly isolated, no
+container, and CI needs no services.
+
+The file-backed variant used by `pnpm dev` is a different story. PGlite is single-writer, so the
+dev server and the CLI cannot both hold `.data/` — the second blocks on a lock, forever, with no
+error. Seeding a club while the app is running is a completely ordinary thing to want, and it was
+impossible.
+
+So development gets a real Postgres from `docker-compose.yml`, matching the version deployed, and
+the PGlite file stays as the fallback for anyone who has not started it. Three databases sounds
+like too many; in practice each one is doing something the others cannot.
+
+Two bugs came out of this, both from `connect` never offering a way to close what it opened:
+`postgres-js` kept a socket open so CLI commands never exited, and PGlite kept the directory lock
+so the _next_ command hung. `disconnect` now exists and the CLI uses it.
+
+## D22 — Migrations are tracked, not replayed
+
+`applyMigrations` re-ran every file on every call, which was fine while the only database was a
+throwaway. On the day this deployed, the second `treasurer migrate` against a live database died
+on `type "entry_kind" already exists`.
+
+Applied migrations are now recorded in a `_migration` table and skipped on later runs. A database
+that was migrated before that table existed is adopted by recording the baseline rather than
+attempting to create the schema twice — only the initial migration ever shipped untracked, so it
+is the only one that may be assumed.

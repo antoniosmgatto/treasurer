@@ -1,0 +1,38 @@
+# Local Postgres for development.
+#
+# PGlite stays the zero-install fallback — with no DATABASE_URL the app still runs against a file
+# under .data/ and nothing needs to be installed. But PGlite is single-writer, so `pnpm dev` and
+# `pnpm cli` cannot use it at the same time: the second one blocks on the lock. A real server
+# removes that, and matches the Postgres this deploys to.
+#
+#   docker compose up -d
+#   cp .env.example .env.local && set -a && source .env.local && set +a
+#   pnpm cli migrate
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: treasurer-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: treasurer
+      POSTGRES_PASSWORD: treasurer
+      POSTGRES_DB: treasurer_dev
+    ports:
+      # 5433 on the host: 5432 is usually already taken by another project's Postgres.
+      - '5433:5432'
+    volumes:
+      # Postgres 18 expects a single mount here, not at /var/lib/postgresql/data. Mounting the
+      # old path makes the image refuse to start, because it finds data outside the directory it
+      # now manages. See docker-library/postgres#1259.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      # Without this, the first command after `up` races the server's own startup.
+      test: ['CMD-SHELL', 'pg_isready -U treasurer -d treasurer_dev']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres-data:
