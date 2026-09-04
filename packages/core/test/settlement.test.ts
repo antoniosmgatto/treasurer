@@ -221,3 +221,52 @@ describe('settle — validation', () => {
     expect(() => settle(broken, members)).toThrow(/unknown payer/);
   });
 });
+
+describe('settle — the man who does not drink', () => {
+  // The camping trip, plus the beer m03 had no part in. He pays two collectors of three.
+  const withBeer: Event = {
+    ...acampamento,
+    expenses: [
+      ...acampamento.expenses,
+      {
+        id: 'cerveja',
+        description: 'Cerveja',
+        collector: { kind: 'member', memberId: 'm02' },
+        amount: 12_000 as never,
+        participants: members.map((member) => ({
+          memberId: member.id,
+          weight: member.id === 'm03' ? 0 : 1,
+        })),
+      },
+    ],
+  };
+
+  const settlement = settle(withBeer, members);
+  const forMember = (id: string) => settlement.members.find((member) => member.memberId === id)!;
+
+  it('charges him nothing for it, and says so on the line', () => {
+    const beer = forMember('m03').lines.find((line) => line.expenseId === 'cerveja')!;
+    expect(beer.amount).toBe(0);
+    expect(beer.excluded).toBe(true);
+  });
+
+  it('leaves his total below everybody else by exactly the beer', () => {
+    // 120,00 across the nine who drink is 13,34 each, rounded up.
+    expect(formatBRL(forMember('m04').owed)).toBe('R$ 60,87');
+    expect(formatBRL(forMember('m03').owed)).toBe('R$ 47,53');
+  });
+
+  it('still has him paying the collector for the bills he was in', () => {
+    const toM02 = forMember('m03').payments.find((payment) => payment.name === 'Membro 02')!;
+    // The dinner only: 15,88, with nothing added for the beer.
+    expect(formatBRL(toM02.amount)).toBe('R$ 15,88');
+  });
+
+  it('collects the beer from the nine who drank it', () => {
+    const m02 = settlement.collectors.find(
+      (entry) => entry.collector.kind === 'member' && entry.collector.memberId === 'm02',
+    )!;
+    // Dinner 9 × 15,88 plus beer 8 × 13,34 — he is not charged for his own.
+    expect(formatBRL(m02.collecting)).toBe('R$ 249,64');
+  });
+});

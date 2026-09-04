@@ -6,6 +6,7 @@ import {
   type Expense,
   type LedgerEntry,
   type Member,
+  type Participant,
 } from '@treasurer/core';
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
@@ -46,7 +47,7 @@ function liveMembers(groupId: string) {
 export async function loadEvent(
   db: Db,
   eventId: string,
-): Promise<{ members: Member[]; event: Event } | null> {
+): Promise<{ members: Member[]; event: Event; roster: Participant[] } | null> {
   const [eventRow] = await db
     .select()
     .from(events)
@@ -102,6 +103,8 @@ export async function loadEvent(
 
   return {
     members: memberRows.map(toMember),
+    // Returned in its own right: a bill with an exclusion no longer stands in for the roster.
+    roster,
     event: toEvent(eventRow, expenseRows, sharesByExpense, roster),
   };
 }
