@@ -38,18 +38,26 @@ string contains characters your shell will otherwise interpret.
 Import the repository at [vercel.com/new](https://vercel.com/new), then override the defaults —
 this is a monorepo and the detected settings will be wrong:
 
-| Setting          | Value                                         |
-| ---------------- | --------------------------------------------- |
-| Root Directory   | `.` (the repository root, **not** `apps/web`) |
-| Framework Preset | Next.js                                       |
-| Build Command    | `pnpm build:web`                              |
-| Output Directory | `apps/web/.next`                              |
-| Install Command  | `pnpm install` (default)                      |
+| Setting          | Value                              |
+| ---------------- | ---------------------------------- |
+| Root Directory   | `apps/web`                         |
+| Framework Preset | Next.js (detected)                 |
+| Build Command    | override → `pnpm -w run build:web` |
+| Output Directory | leave alone — Next.js sets it      |
+| Install Command  | leave alone — `pnpm install`       |
 
-The root directory matters. The app imports `@treasurer/core` and `@treasurer/db` as workspace
-packages and consumes their compiled output, so those have to be built first; `build:web`
-compiles the packages and then the app, in that order. Pointing Vercel at `apps/web` would build
-the app alone against packages that were never compiled.
+Under **Root Directory**, check that _Include source files outside of the Root Directory in the
+Build Step_ is on. It is the default, and without it the build cannot see `packages/` at all.
+
+The build command is the part worth understanding. The app imports `@treasurer/core` and
+`@treasurer/db` as workspace packages and consumes their compiled output, so those have to be
+built before the app is. `-w` runs the script in the workspace root, where `build:web` compiles
+the packages and then the app, in that order. Vercel's own default — `next build` alone — would
+build the app against packages that were never compiled.
+
+`-w` only resolves correctly because `apps/web` is a plain workspace member. It used to carry its
+own `pnpm-workspace.yaml`, which made it a workspace root in its own right and turned any `-w`
+script into one that invoked itself.
 
 Add the environment variable, for all three environments:
 
