@@ -3,6 +3,8 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
+    // Keep the build info with the output it describes, so deleting dist truly resets the build.
+    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
