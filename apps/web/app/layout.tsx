@@ -20,7 +20,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      {/* Extensions (ColorZilla and friends) write attributes onto <body> before React hydrates,
+          which reads as a mismatch React can't patch. This suppresses the element's own
+          attributes only — one level deep, so a real mismatch in the tree still surfaces. */}
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }
