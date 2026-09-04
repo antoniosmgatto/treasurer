@@ -85,7 +85,22 @@ export async function loadEvent(
     .select()
     .from(eventParticipants)
     .where(eq(eventParticipants.eventId, eventId));
-  const roster = rosterRows.map((row) => ({ memberId: row.memberId, weight: row.weight }));
+
+  /**
+   * An event nobody has been added to means everybody, not nobody. The panel already renders it
+   * that way — with no roster stored, every checkbox appears ticked — and a treasurer who agrees
+   * with what they see has no reason to press save. Reading it back as an empty roster made the
+   * split silently collapse: with no participants, each expense lands straight back on whoever
+   * paid it and the whole event settles to zero.
+   *
+   * The caixa is never a participant (D6), and a retired member is not on a current event (D7).
+   */
+  const roster =
+    rosterRows.length > 0
+      ? rosterRows.map((row) => ({ memberId: row.memberId, weight: row.weight }))
+      : memberRows
+          .filter((row) => !row.isTreasury && !row.retiredAt)
+          .map((row) => ({ memberId: row.id, weight: 1 }));
 
   return {
     members: memberRows.map(toMember),
