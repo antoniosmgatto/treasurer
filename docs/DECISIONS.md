@@ -243,3 +243,28 @@ chases it, instead of a member keeping three Pix keys in his head.
 
 The migration that drops the column also soft-deletes the caixa rows (D19), so past events keep
 whatever it fronted.
+
+## D26 — Debts are gross between collectors, never netted
+
+If two members each collect a bill the other took part in, both transfers happen. m01 pays m02
+R$15,88 for the dinner and m02 pays m01 R$15,50 for the meat, rather than one of them sending the
+R$0,38 difference.
+
+Netting would save a transfer and cost the only thing that makes a payment checkable: that it
+lines up with one collector's bills. Phase 8 asks somebody to attach a receipt to a payment and
+somebody else to confirm it — a netted figure matches no bill, no share and no receipt, and the
+first person asked to verify one would have to redo the arithmetic by hand.
+
+It is also what the group already does. The message that started this project listed three
+amounts to three people, not a set of optimized transfers.
+
+## D27 — A bill collected by the club is a bill the club paid for
+
+The collector of a bill is whoever fronted it, and that is either a member or the club. There is
+no third case where a member fronts money and the club collects on his behalf, because the club
+would then owe him — and an obligation the club carries between bills is the standing fund D25
+deleted.
+
+In the database this is a null `payer_id`: no member row fronted it. In the engine the club is a
+collector with no ledger entries of its own, which is why the members' entries no longer sum to
+zero on their own — they fall short by exactly what the club collects.

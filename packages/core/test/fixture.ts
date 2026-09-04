@@ -1,9 +1,10 @@
 import { cents } from '../src/money.js';
-import type { Event, Member, Participant } from '../src/types.js';
+import { CLUB, type Event, type Member, type Participant } from '../src/types.js';
 
 /**
- * The reference event: a three-night camping trip, ten people sharing, three of whom fronted
- * money and collect it back. Anonymized; the amounts are what matter.
+ * The reference event: a three-night camping trip, ten people sharing. Two members fronted a bill
+ * each and collect it to their own key; the third was paid for by the club and is collected to
+ * the club's. Anonymized; the amounts are what matter.
  */
 export const members: Member[] = [
   { id: 'm01', name: 'Membro 01', code: 1 },
@@ -30,21 +31,24 @@ export const acampamento: Event = {
     {
       id: 'carne',
       description: 'Carne',
-      payerId: 'm01',
+      collector: { kind: 'member', memberId: 'm01' },
+      collectionKey: '41999000001',
       amount: cents(15_500),
       participants: everyone,
     },
     {
       id: 'mercado',
       description: 'Mercado (janta)',
-      payerId: 'm02',
+      collector: { kind: 'member', memberId: 'm02' },
+      collectionKey: '41999000002',
       amount: cents(15_873),
       participants: everyone,
     },
     {
       id: 'compras',
       description: 'Compras',
-      payerId: 'm03',
+      collector: CLUB,
+      collectionKey: '41999000099',
       amount: cents(16_147),
       participants: everyone,
     },

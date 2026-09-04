@@ -12,10 +12,13 @@ function formatDate(iso: string): string {
 /**
  * The message the treasurer pastes into the group. Everyone sees the same list, which is what
  * makes the ledger public and stops the thread from becoming the record.
+ *
+ * Each payer gets their total and, under it, who that total is split between — because with more
+ * than one collector the total alone does not tell anybody what to do.
  */
 export function chatSummary(event: Event, settlement: Settlement): string {
-  const receiving = settlement.members.filter((member) => member.net > 0);
   const paying = settlement.members.filter((member) => member.owed > 0);
+  const receiving = settlement.collectors.filter((collector) => collector.collecting > 0);
 
   const lines = [
     `*${event.name}* — ${formatDate(event.date)}`,
@@ -27,14 +30,21 @@ export function chatSummary(event: Event, settlement: Settlement): string {
     lines.push('*Quem paga*');
     for (const member of paying) {
       lines.push(`• ${member.name}: ${formatBRL(member.owed)}`);
+      if (member.payments.length > 1) {
+        const split = member.payments
+          .map((payment) => `${payment.name} ${formatBRL(payment.amount)}`)
+          .join(' · ');
+        lines.push(`   ↳ ${split}`);
+      }
     }
     lines.push('');
   }
 
   if (receiving.length > 0) {
     lines.push('*Quem recebe*');
-    for (const member of receiving) {
-      lines.push(`• ${member.name}: ${formatBRL(member.net)}`);
+    for (const collector of receiving) {
+      const key = collector.key ? ` — chave ${collector.key}` : '';
+      lines.push(`• ${collector.name}: ${formatBRL(collector.collecting)}${key}`);
     }
     lines.push('');
   }
@@ -44,6 +54,7 @@ export function chatSummary(event: Event, settlement: Settlement): string {
       `_Arredondamento para cima: ${formatBRL(settlement.rounding)}, fica com quem pagou_`,
     );
   }
+
   return lines.join('\n');
 }
 
@@ -66,11 +77,22 @@ export function memberSummary(member: MemberSettlement): string {
   }
 
   lines.push('');
-  if (member.owed > 0) {
-    lines.push(`*A pagar: ${formatBRL(member.owed)}*`);
-  } else if (member.net > 0) {
-    lines.push(`*Você recebe: ${formatBRL(member.net)}*`);
-  } else {
+
+  if (member.payments.length > 0) {
+    lines.push('*A pagar*');
+    for (const payment of member.payments) {
+      const key = payment.key ? ` — chave ${payment.key}` : '';
+      lines.push(`• ${payment.name}: ${formatBRL(payment.amount)}${key}`);
+    }
+    lines.push(`*Total: ${formatBRL(member.owed)}*`);
+  }
+
+  if (member.receiving > 0) {
+    if (member.payments.length > 0) lines.push('');
+    lines.push(`*Você recebe: ${formatBRL(member.receiving)}*`);
+  }
+
+  if (member.payments.length === 0 && member.receiving === 0) {
     lines.push('*Você está quitado*');
   }
 

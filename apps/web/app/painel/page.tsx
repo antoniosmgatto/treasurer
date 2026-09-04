@@ -1,4 +1,11 @@
-import { chatSummary, formatBRL, formatCode, settle } from '@treasurer/core';
+import {
+  chatSummary,
+  formatBRL,
+  formatCode,
+  settle,
+  type Collector,
+  type Member,
+} from '@treasurer/core';
 import { balancesFor, loadEvent, membersOf, openEventFor } from '@treasurer/db';
 import Link from 'next/link';
 import { ActionForm } from '@/components/action-form';
@@ -20,6 +27,11 @@ import {
 } from './actions';
 
 export const dynamic = 'force-dynamic';
+
+function collectorName(collector: Collector, members: readonly Member[]): string {
+  if (collector.kind === 'club') return t.event.club;
+  return members.find((member) => member.id === collector.memberId)?.name ?? collector.memberId;
+}
 
 export default async function PanelPage() {
   const groupId = await requireGroup();
@@ -99,7 +111,7 @@ export default async function PanelPage() {
                 {expense.description}
                 <span className="text-muted-foreground">
                   {' · '}
-                  {members.find((member) => member.id === expense.payerId)?.name}
+                  {collectorName(expense.collector, members)}
                 </span>
               </span>
               <span className="flex items-center gap-3">
@@ -142,8 +154,15 @@ export default async function PanelPage() {
                       {member.name}
                     </option>
                   ))}
+                {/* D25: the club is a label with a key, not a member row. */}
+                <option value="club">{t.event.club}</option>
               </select>
             </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="collectionKey">{t.event.collectionKey}</Label>
+            <Input id="collectionKey" name="collectionKey" placeholder="41 99999-9999" />
+            <p className="text-muted-foreground text-xs">{t.event.collectionKeyHint}</p>
           </div>
           <div>
             <SubmitButton>{t.event.addExpense}</SubmitButton>
@@ -158,16 +177,17 @@ export default async function PanelPage() {
             <thead className="text-muted-foreground text-left text-xs">
               <tr>
                 <th className="pb-2 font-normal">{t.settlement.member}</th>
-                <th className="pb-2 text-right font-normal">{t.settlement.share}</th>
                 <th className="pb-2 text-right font-normal">{t.settlement.toPay}</th>
+                <th className="pb-2 text-right font-normal">{t.settlement.receives}</th>
                 <th className="pb-2 text-right font-normal">{t.settlement.paid}</th>
               </tr>
             </thead>
             <tbody>
               {settlement.members.map((member) => {
                 const balance = balances.get(member.memberId) ?? 0;
-                // Owing nothing means the member fronted money and is owed it back.
-                const fronter = member.owed === 0;
+                // Net decides the direction of the one button: somebody who both collects a bill
+                // and owes on others is square with the group only once both sides have moved.
+                const fronter = member.net > 0;
                 // A debtor's balance climbs towards zero as they pay; a fronter's falls towards
                 // zero as they are paid back. Both are settled when they reach it.
                 const settled =
@@ -179,12 +199,20 @@ export default async function PanelPage() {
                         {formatCode(member.code)}
                       </span>{' '}
                       {member.name}
+                      {/* One line per collector: the total alone does not say what to do. */}
+                      {member.payments.length > 1 && (
+                        <span className="text-muted-foreground block text-xs">
+                          {member.payments
+                            .map((payment) => `${payment.name} ${formatBRL(payment.amount)}`)
+                            .join(' · ')}
+                        </span>
+                      )}
                     </td>
                     <td className="py-2 text-right tabular-nums">
                       {member.owed > 0 ? formatBRL(member.owed) : '—'}
                     </td>
                     <td className="py-2 text-right tabular-nums">
-                      {fronter ? formatBRL(member.net) : formatBRL(member.owed)}
+                      {member.receiving > 0 ? formatBRL(member.receiving) : '—'}
                     </td>
                     <td className="py-2 text-right">
                       {settled ? (
@@ -210,6 +238,22 @@ export default async function PanelPage() {
               })}
             </tbody>
           </table>
+          {/* The other side of the table: who the money is going to, and where. */}
+          <div className="flex flex-col gap-1 border-t pt-3">
+            <h3 className="text-muted-foreground text-xs">{t.settlement.collectors}</h3>
+            {settlement.collectors.map((collector) => (
+              <p key={collector.name} className="flex justify-between gap-4 text-sm">
+                <span>
+                  {collector.name}
+                  {collector.key && (
+                    <span className="text-muted-foreground"> · {collector.key}</span>
+                  )}
+                </span>
+                <span className="tabular-nums">{formatBRL(collector.collecting)}</span>
+              </p>
+            ))}
+          </div>
+
           <p className="text-muted-foreground text-xs">
             {t.settlement.rounding}: {formatBRL(settlement.rounding)}
           </p>
