@@ -4,7 +4,8 @@
   "type": "module",
   "packageManager": "pnpm@10.18.1",
   "engines": {
-    "node": ">=22"
+    "node": ">=24",
+    "npm": ">=12"
   },
   "scripts": {
     "build": "tsc --build",
