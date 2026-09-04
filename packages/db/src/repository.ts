@@ -305,6 +305,27 @@ export async function recordPayment(
 }
 
 /**
+ * The other direction: the caixa paying back whoever fronted money. Takes the amount handed over,
+ * and stores it negated, because a positive entry means the group owes the member and reimbursing
+ * them is what discharges that. Without this an event can never reach zero — the members settle up
+ * and the fronters stay creditors forever.
+ */
+export async function recordReimbursement(
+  db: Db,
+  groupId: string,
+  input: { memberId: string; eventId: string; amount: Cents },
+): Promise<void> {
+  await appendEntries(db, groupId, [
+    {
+      memberId: input.memberId,
+      kind: 'reimbursement',
+      amount: cents(-input.amount),
+      eventId: input.eventId,
+    },
+  ]);
+}
+
+/**
  * The lowest code not yet used by this group, retired members included — reissuing a code would
  * misattribute a late payment (D7).
  */
