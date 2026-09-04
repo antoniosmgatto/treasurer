@@ -105,6 +105,68 @@ describe('the event roster (D12)', () => {
   });
 });
 
+describe('an event with no roster saved', () => {
+  it('splits across everyone rather than settling to zero', async () => {
+    // Exactly what a treasurer does when the checkboxes already look right: never press save,
+    // add the expenses, publish.
+    await recordExpense(db, EVENT, {
+      id: 'beras',
+      description: 'Beras',
+      payerId: 'm01',
+      amount: 15099 as never,
+      participants: [],
+    });
+    await recordExpense(db, EVENT, {
+      id: 'carne',
+      description: 'Carne',
+      payerId: 'm02',
+      amount: 5000 as never,
+      participants: [],
+    });
+
+    const loaded = await loadEvent(db, EVENT);
+    const settlement = settle(loaded!.event, loaded!.members);
+
+    // Three members, R$200,99. Previously every payer netted zero and the rest never appeared.
+    expect(settlement.members).toHaveLength(3);
+    expect(settlement.total).toBe(20099);
+    expect(settlement.members.find((m) => m.memberId === 'm03')!.owed).toBe(6699);
+
+    // The caixa never takes a share (D6).
+    expect(settlement.members.some((m) => m.memberId === 'caixa')).toBe(false);
+    expect(settlement.members.reduce((total, m) => total + m.net, 0)).toBe(0);
+  });
+
+  it('leaves an explicitly saved roster alone', async () => {
+    await setRoster(db, EVENT, [{ memberId: 'm01', weight: 1 }]);
+    await recordExpense(db, EVENT, {
+      id: 'carne',
+      description: 'Carne',
+      payerId: 'm01',
+      amount: 9000 as never,
+      participants: [],
+    });
+
+    const loaded = await loadEvent(db, EVENT);
+    expect(loaded!.event.expenses[0]!.participants).toEqual([{ memberId: 'm01', weight: 1 }]);
+  });
+
+  it('excludes a retired member from the implied roster (D7)', async () => {
+    await retireMember(db, 'm03');
+    await recordExpense(db, EVENT, {
+      id: 'carne',
+      description: 'Carne',
+      payerId: 'm01',
+      amount: 9000 as never,
+      participants: [],
+    });
+
+    const loaded = await loadEvent(db, EVENT);
+    const ids = loaded!.event.expenses[0]!.participants.map((p) => p.memberId);
+    expect(ids).toEqual(['m01', 'm02']);
+  });
+});
+
 describe('member read links (D11)', () => {
   it('resolves a member from their own token', async () => {
     const [row] = await db.select().from(members).where(eq(members.id, 'm02'));
