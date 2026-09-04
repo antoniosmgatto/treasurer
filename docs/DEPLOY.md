@@ -7,57 +7,77 @@ object storage yet — access is by unguessable link, so there is nothing else t
 
 ---
 
-## 1. The database
+## 1. The Vercel project
 
-Create a project at [neon.tech](https://neon.tech). Any region works; `aws-us-east-1` is the
-default and is fine from Brazil.
+Import the repository at [vercel.com/new](https://vercel.com/new). Before deploying, click
+**Edit** next to Root Directory and set these — this is a monorepo and the detected settings will
+be wrong:
 
-From the dashboard, copy the **pooled** connection string — the host contains `-pooler`:
+| Setting          | Value                              |
+| ---------------- | ---------------------------------- |
+| Root Directory   | `apps/web`                         |
+| Framework Preset | Next.js (detected)                 |
+| Build Command    | override → `pnpm -w run build:web` |
+| Output Directory | leave alone — Next.js sets it      |
+| Install Command  | leave alone — `pnpm install`       |
 
-```
-postgresql://USER:PASSWORD@ep-xxxx-pooler.REGION.aws.neon.tech/neondb?sslmode=require
-```
+Under **Root Directory**, check that _Include source files outside of the Root Directory in the
+Build Step_ is on. It is the default, and without it the build cannot see `packages/` at all.
 
-Take the pooled one, not the direct one. Serverless functions open a connection per invocation
-and the direct endpoint will run out of them.
+The build command is the part worth understanding. The app imports `@treasurer/core` and
+`@treasurer/db` as workspace packages and consumes their compiled output, so those have to be
+built before the app is. `-w` runs the script in the workspace root, where `build:web` compiles
+the packages and then the app, in that order. Vercel's own default — `next build` alone — would
+build the app against packages that were never compiled.
 
-## 2. The schema
+`-w` only resolves correctly because `apps/web` is a plain workspace member. It used to carry its
+own `pnpm-workspace.yaml`, which made it a workspace root in its own right and turned any `-w`
+script into one that invoked itself.
 
-Apply migrations from your machine, pointing at Neon. Run it from the repository root:
+Deploy. The first build succeeds and the app then fails to start, because there is no database
+yet. That is the next step, and the failure is deliberate — see the note at the end.
+
+## 2. The database
+
+Neon is provisioned from inside Vercel, so there is no second account to create and no connection
+string to copy by hand.
+
+In the project, open the **Storage** tab, choose **Neon** from the Marketplace, and create a
+database. Pick the free plan and a region; `aws-us-east-1` is the default and is fine from Brazil.
+Tick all three environments — Development, Preview and Production — when asked which get the
+variables.
+
+The integration sets `DATABASE_URL` on the project automatically, already pointing at the
+**pooled** endpoint, which is the one serverless functions need. It also sets
+`DATABASE_URL_UNPOOLED` and a handful of `PG*` variables that this app ignores.
+
+Redeploy once the variables exist, from **Deployments → ⋯ → Redeploy**.
+
+Billing for a database created this way runs through your Vercel invoice rather than a separate
+Neon account. If you would rather keep them apart, create the project at
+[neon.tech](https://neon.tech) instead, copy the pooled connection string — the host contains
+`-pooler` — and add it to Vercel yourself as `DATABASE_URL` for all three environments.
+
+## 3. The schema
+
+Migrations run from your machine against the hosted database. Pull the connection string that
+Vercel now holds:
 
 ```sh
-DATABASE_URL='postgresql://…-pooler…' pnpm cli migrate
+npx vercel link
+npx vercel env pull .env.local
 ```
 
-It prints `Migrando o banco remoto…` — if it says `local` instead, the variable did not reach
-the process and it just migrated the PGlite file in `.data/`. Quote the string; the connection
-string contains characters your shell will otherwise interpret.
+`.env.local` is gitignored. Load it into the shell once, and both this command and the seed in the
+next step will use it:
 
-## 3. The Vercel project
-
-Import the repository at [vercel.com/new](https://vercel.com/new), then override the defaults —
-this is a monorepo and the detected settings will be wrong:
-
-| Setting          | Value                                         |
-| ---------------- | --------------------------------------------- |
-| Root Directory   | `.` (the repository root, **not** `apps/web`) |
-| Framework Preset | Next.js                                       |
-| Build Command    | `pnpm build:web`                              |
-| Output Directory | `apps/web/.next`                              |
-| Install Command  | `pnpm install` (default)                      |
-
-The root directory matters. The app imports `@treasurer/core` and `@treasurer/db` as workspace
-packages and consumes their compiled output, so those have to be built first; `build:web`
-compiles the packages and then the app, in that order. Pointing Vercel at `apps/web` would build
-the app alone against packages that were never compiled.
-
-Add the environment variable, for all three environments:
-
-```
-DATABASE_URL = postgresql://…-pooler…
+```sh
+set -a; source .env.local; set +a
+pnpm cli migrate
 ```
 
-Deploy.
+It prints `Migrando o banco remoto…`. If it says `local` instead, the variable did not reach the
+process and it just migrated the PGlite file in `.data/`.
 
 ## 4. Create the club
 
@@ -68,7 +88,7 @@ anything committed. Copy `examples/club.json`, fill in the real roster, and keep
 ```sh
 cp examples/club.json club.private.json
 $EDITOR club.private.json
-DATABASE_URL='postgresql://…-pooler…' pnpm cli seed club.private.json
+pnpm cli seed club.private.json
 ```
 
 It prints the treasurer link and one link per member, as paths:
@@ -96,6 +116,12 @@ Nothing in the database is worth more than the links themselves.
 **Rounding surplus accrues to the treasury.** Roughly R$4,44 on a ten-person event, and it is
 systematically uneven — the member with the highest code always pays a little more (D1). Tell
 the group; it is small, but it is not nothing and it is not random.
+
+**A deployment refuses to start without `DATABASE_URL`.** Locally, no connection string means a
+Postgres in a file under `.data/`. On Vercel that fallback would write to a filesystem that is
+thrown away between invocations, so the data would appear to save and then vanish — which is why
+`connect()` throws instead when `VERCEL` or `NODE_ENV=production` is set. A deploy that fails
+loudly beats a club that loses its ledger.
 
 **PGlite stays the local default.** With no `DATABASE_URL`, everything falls back to a Postgres
 in a file under `.data/`, so development and tests need no service and no credentials. Only
