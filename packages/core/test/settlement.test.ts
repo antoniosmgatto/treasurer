@@ -23,20 +23,59 @@ describe('settle — the reference event', () => {
     }
   });
 
-  it('pays back the three members who fronted money, rounding included', () => {
-    // 155,00 fronted − 47,53 own share; the bill divided evenly, so no rounding.
-    expect(formatBRL(forMember('m01').net)).toBe('R$ 107,47');
-    // 158,73 fronted − 47,53 own share + 0,07 the rounding handed him.
-    expect(formatBRL(forMember('m02').net)).toBe('R$ 111,27');
-    // 161,47 fronted − 47,53 own share + 0,03 rounding.
-    expect(formatBRL(forMember('m03').net)).toBe('R$ 113,97');
+  it('splits that share into one payment per collector', () => {
+    const payments = forMember('m04').payments;
+    expect(payments.map((payment) => [payment.name, formatBRL(payment.amount)])).toEqual([
+      ['Membro 01', 'R$ 15,50'],
+      ['Membro 02', 'R$ 15,88'],
+      ['Clube', 'R$ 16,15'],
+    ]);
+    // Each payment carries the key the bill was collected to, so it can be acted on.
+    expect(payments.map((payment) => payment.key)).toEqual([
+      '41999000001',
+      '41999000002',
+      '41999000099',
+    ]);
   });
 
-  it('gives the rounding to the collectors, not to the club', () => {
+  it('never asks a collector to pay themselves', () => {
+    const m01 = forMember('m01');
+    expect(m01.payments.map((payment) => payment.name)).toEqual(['Membro 02', 'Clube']);
+    // Their own share of their own bill is already covered by what they fronted.
+    expect(formatBRL(m01.owed)).toBe('R$ 32,03');
+    expect(formatBRL(m01.receiving)).toBe('R$ 139,50');
+  });
+
+  it('pays gross, not netted: two collectors each pay the other', () => {
+    const toM02 = forMember('m01').payments.find((payment) => payment.name === 'Membro 02');
+    const toM01 = forMember('m02').payments.find((payment) => payment.name === 'Membro 01');
+    expect(formatBRL(toM02!.amount)).toBe('R$ 15,88');
+    expect(formatBRL(toM01!.amount)).toBe('R$ 15,50');
+  });
+
+  it('collects the club bill to the club, which holds no balance', () => {
+    const club = settlement.collectors.find((entry) => entry.collector.kind === 'club');
+    expect(club!.name).toBe('Clube');
+    // All ten owe it: the club is not a member, so nobody's own share is excluded.
+    expect(formatBRL(club!.collecting)).toBe('R$ 161,50');
+    expect(formatBRL(club!.fronted)).toBe('R$ 161,47');
+    expect(formatBRL(club!.rounding)).toBe('R$ 0,03');
+    expect(settlement.members.some((member) => member.memberId === 'club')).toBe(false);
+  });
+
+  it('reports each position, receiving and owing kept apart', () => {
+    // Receives 9 × 15,50 for the meat, and owes the dinner and the club's shopping.
+    expect(formatBRL(forMember('m01').net)).toBe('R$ 107,47');
+    // Receives 9 × 15,88 plus the 0,07 rounding, owes the meat and the shopping.
+    expect(formatBRL(forMember('m02').net)).toBe('R$ 111,27');
+    // Fronted nothing, so there is only one side to it.
+    expect(formatBRL(forMember('m03').net)).toBe('-R$ 47,53');
+  });
+
+  it('gives the rounding to whoever collected the bill', () => {
     expect(formatBRL(settlement.rounding)).toBe('R$ 0,10');
     expect(formatBRL(forMember('m02').rounding)).toBe('R$ 0,07');
-    expect(formatBRL(forMember('m03').rounding)).toBe('R$ 0,03');
-    // He fronted a bill that divided evenly, so there was nothing to round.
+    // The meat divided evenly, so there was nothing to round.
     expect(forMember('m01').rounding).toBe(0);
   });
 
@@ -48,8 +87,24 @@ describe('settle — the reference event', () => {
 });
 
 describe('settle — invariants', () => {
-  it('the fair shares sum to zero', () => {
-    expect(sum(settlement.members.map((member) => member.net))).toBe(0);
+  it('what the members are short is exactly what the club collects', () => {
+    const club = settlement.collectors.find((entry) => entry.collector.kind === 'club');
+    // Money leaving the members towards the club has no member credit to balance it: the club is
+    // a key, not a row (D25).
+    expect(sum(settlement.members.map((member) => member.net))).toBe(-club!.collecting);
+  });
+
+  it('every collector is owed exactly what the payers were asked for', () => {
+    for (const collector of settlement.collectors) {
+      const paid = sum(
+        settlement.members.flatMap((member) =>
+          member.payments
+            .filter((payment) => payment.name === collector.name)
+            .map((payment) => payment.amount),
+        ),
+      );
+      expect(paid).toBe(collector.collecting);
+    }
   });
 
   it('every bill is covered by the shares charged for it', () => {
@@ -81,7 +136,7 @@ describe('settle — exclusions are visible', () => {
       {
         id: 'cerveja',
         description: 'Cerveja',
-        payerId: 'm01',
+        collector: { kind: 'member', memberId: 'm01' },
         amount: 6000 as never,
         participants: [
           { memberId: 'm01', weight: 1 },
@@ -131,7 +186,7 @@ describe('settle — random events always balance', () => {
         expenses: Array.from({ length: 1 + random(4) }, (_, index) => ({
           id: `e${index}`,
           description: `Despesa ${index}`,
-          payerId: payers[random(payers.length)]!.id,
+          collector: { kind: 'member' as const, memberId: payers[random(payers.length)]!.id },
           amount: (1 + random(50_000)) as never,
           participants,
         })),
@@ -139,6 +194,10 @@ describe('settle — random events always balance', () => {
 
       const result = settle(event, members);
       expect(sum(result.members.map((member) => member.net))).toBe(0);
+      // Gross debts: everything a payer is asked for reaches a collector.
+      const owed = sum(result.members.map((member) => member.owed));
+      const collecting = sum(result.collectors.map((collector) => collector.collecting));
+      expect(owed).toBe(collecting);
     }
   });
 });
@@ -152,7 +211,12 @@ describe('settle — validation', () => {
   it('rejects an expense whose payer is nobody', () => {
     const broken: Event = {
       ...acampamento,
-      expenses: [{ ...acampamento.expenses[0]!, payerId: 'ninguem' }],
+      expenses: [
+        {
+          ...acampamento.expenses[0]!,
+          collector: { kind: 'member' as const, memberId: 'ninguem' },
+        },
+      ],
     };
     expect(() => settle(broken, members)).toThrow(/unknown payer/);
   });

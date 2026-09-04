@@ -35,8 +35,9 @@ export function validateEvent(event: Event, members: readonly Member[]): string[
   const byId = new Map(members.map((member) => [member.id, member]));
 
   for (const expense of event.expenses) {
-    const payer = byId.get(expense.payerId);
-    if (!payer) problems.push(`${expense.description}: unknown payer ${expense.payerId}`);
+    if (expense.collector.kind === 'member' && !byId.get(expense.collector.memberId)) {
+      problems.push(`${expense.description}: unknown payer ${expense.collector.memberId}`);
+    }
     if (expense.amount <= 0) problems.push(`${expense.description}: amount must be positive`);
 
     const seen = new Set<string>();

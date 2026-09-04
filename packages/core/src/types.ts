@@ -19,11 +19,38 @@ export interface Participant {
   weight: number;
 }
 
+/**
+ * Who fronted a bill and collects the shares back for it. Chosen by whoever adds the bill: their
+ * own key, or the club's.
+ *
+ * The club is a label with a key, never a member row and never a balance (D25). "Collected by the
+ * club" means the club's money paid for it — if a member fronts a bill and the club collects on
+ * his behalf, the club owes him, and that obligation is the standing fund this project deleted.
+ */
+export type Collector = { kind: 'member'; memberId: MemberId } | { kind: 'club' };
+
+export const CLUB: Collector = { kind: 'club' };
+
+export function isSameCollector(a: Collector, b: Collector): boolean {
+  if (a.kind === 'club' || b.kind === 'club') return a.kind === b.kind;
+  return a.memberId === b.memberId;
+}
+
+/** A stable key for grouping payments by who receives them. */
+export function collectorId(collector: Collector): string {
+  return collector.kind === 'club' ? 'club' : collector.memberId;
+}
+
 export interface Expense {
   id: string;
   description: string;
-  /** Whoever fronted the money, and who the shares are collected for. */
-  payerId: MemberId;
+  /** Who fronted the money and collects it back. */
+  collector: Collector;
+  /**
+   * Where to send the money — a Pix key, typed when the bill is added. Per collector per event:
+   * the same person may collect to a different key on another trip.
+   */
+  collectionKey?: string;
   amount: Cents;
   participants: readonly Participant[];
   receiptUrl?: string;

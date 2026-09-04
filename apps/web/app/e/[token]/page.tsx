@@ -56,7 +56,7 @@ export default async function MemberPage({ params }: { params: Promise<{ token: 
           <p className="text-muted-foreground text-sm">{t.member.exact}</p>
         </section>
       ) : (
-        <Headline label={t.member.youReceive} amount={formatBRL(mine.net)} />
+        <Headline label={t.member.youReceive} amount={formatBRL(mine.receiving)} />
       )}
 
       {mine && (
@@ -77,9 +77,21 @@ export default async function MemberPage({ params }: { params: Promise<{ token: 
           {mine.owed > 0 && !paid && (
             <>
               <hr className="border-border" />
-              <dl className="flex flex-col gap-1 text-sm">
-                <Row label={t.member.yourShare} value={formatBRL(mine.owed)} />
-              </dl>
+              {/* The amount alone is not actionable: it is several transfers, to several people. */}
+              <h2 className="text-muted-foreground text-xs">{t.member.payTo}</h2>
+              <ul className="flex flex-col gap-2 text-sm">
+                {mine.payments.map((payment) => (
+                  <li key={payment.name} className="flex justify-between gap-4">
+                    <span>
+                      {payment.name}
+                      {payment.key && (
+                        <span className="text-muted-foreground block text-xs">{payment.key}</span>
+                      )}
+                    </span>
+                    <span className="tabular-nums">{formatBRL(payment.amount)}</span>
+                  </li>
+                ))}
+              </ul>
               {/* D1: the rounding is named, never buried. */}
               <p className="text-muted-foreground text-xs">{t.member.roundedUp}</p>
             </>

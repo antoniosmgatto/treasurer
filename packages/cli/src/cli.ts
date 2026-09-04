@@ -204,8 +204,16 @@ function main(argv: string[]): number {
         pad(member.name, width),
         padStart(formatCode(member.code), 4),
         padStart(member.owed > 0 ? formatBRL(member.owed) : '—', 12),
-        padStart(member.net > 0 ? formatBRL(member.net) : '—', 12),
+        padStart(member.receiving > 0 ? formatBRL(member.receiving) : '—', 12),
       ].join('  '),
+    );
+  }
+
+  console.log('\nQuem recebe');
+  for (const collector of settlement.collectors) {
+    const key = collector.key ? `  ${collector.key}` : '';
+    console.log(
+      `${pad(collector.name, width)}  ${padStart(formatBRL(collector.collecting), 12)}${key}`,
     );
   }
 

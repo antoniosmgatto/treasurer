@@ -1,4 +1,4 @@
-import { chatSummary, settle, type Member } from '@treasurer/core';
+import { CLUB, chatSummary, settle, type Member } from '@treasurer/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { newToken } from '../src/ids.js';
 import {
@@ -53,21 +53,21 @@ describe('round trip', () => {
     await recordExpense(db, EVENT, {
       id: 'carne',
       description: 'Carne',
-      payerId: 'm01',
+      collector: { kind: 'member', memberId: 'm01' },
       amount: 15_500 as never,
       participants: everyone,
     });
     await recordExpense(db, EVENT, {
       id: 'mercado',
       description: 'Mercado (janta)',
-      payerId: 'm02',
+      collector: { kind: 'member', memberId: 'm02' },
       amount: 15_873 as never,
       participants: everyone,
     });
     await recordExpense(db, EVENT, {
       id: 'compras',
       description: 'Compras',
-      payerId: 'm03',
+      collector: { kind: 'member', memberId: 'm03' },
       amount: 16_147 as never,
       participants: everyone,
     });
@@ -96,7 +96,7 @@ describe('round trip', () => {
     await recordExpense(db, EVENT, {
       id: 'cerveja',
       description: 'Cerveja',
-      payerId: 'm01',
+      collector: { kind: 'member', memberId: 'm01' },
       amount: 6000 as never,
       participants: [
         { memberId: 'm01', weight: 1 },
@@ -155,6 +155,28 @@ describe('the database enforces the decisions, not just the code', () => {
     ).resolves.not.toThrow();
   });
 
+  it('round-trips a bill the club paid for, which has no payer row', async () => {
+    await recordExpense(db, EVENT, {
+      id: 'compras-clube',
+      description: 'Compras do clube',
+      collector: CLUB,
+      collectionKey: '41999000099',
+      amount: 16_147 as never,
+      participants: everyone,
+    });
+
+    const loaded = await loadEvent(db, EVENT);
+    const stored = loaded!.event.expenses.find((expense) => expense.id === 'compras-clube')!;
+    expect(stored.collector).toEqual({ kind: 'club' });
+    expect(stored.collectionKey).toBe('41999000099');
+
+    // All ten owe the club: it is not a member, so nobody's own share is excluded.
+    const settlement = settle(loaded!.event, loaded!.members);
+    const club = settlement.collectors.find((entry) => entry.collector.kind === 'club')!;
+    expect(club.collecting).toBe(16_150);
+    expect(settlement.members.some((member) => member.memberId === 'club')).toBe(false);
+  });
+
   it('refuses two members sharing an identification code', async () => {
     const detail = await violation(() =>
       insertMembers(db, GROUP, [{ id: 'm11', name: 'Membro 11', code: 1 }]),
@@ -180,7 +202,7 @@ describe('the ledger', () => {
     await recordExpense(db, EVENT, {
       id: 'carne',
       description: 'Carne',
-      payerId: 'm01',
+      collector: { kind: 'member', memberId: 'm01' },
       amount: 15_500 as never,
       participants: everyone,
     });

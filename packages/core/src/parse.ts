@@ -1,5 +1,12 @@
 import { cents, parseBRL, type Cents } from './money.js';
-import type { Event, Expense, Member, Participant } from './types.js';
+import {
+  CLUB,
+  type Collector,
+  type Event,
+  type Expense,
+  type Member,
+  type Participant,
+} from './types.js';
 
 /**
  * Reads the plain-JSON shape the CLI accepts. Hand-written rather than schema-driven so the
@@ -63,6 +70,17 @@ function readParticipant(raw: unknown, where: string): Participant {
   };
 }
 
+/**
+ * `"collectedBy": "club"` for a bill the club paid for, otherwise the id of the member who
+ * fronted it. A fixture written before collectors existed says `payerId`, and means the same
+ * thing.
+ */
+function readCollector(record: Record<string, unknown>, where: string): Collector {
+  const raw = record['collectedBy'] ?? record['payerId'];
+  const value = readString(raw, `${where}.collectedBy`);
+  return value === 'club' ? CLUB : { kind: 'member', memberId: value };
+}
+
 function readExpense(raw: unknown, index: number): Expense {
   if (typeof raw !== 'object' || raw === null) {
     throw new ParseError(`expenses[${index}]: not an object`);
@@ -75,12 +93,13 @@ function readExpense(raw: unknown, index: number): Expense {
   const expense: Expense = {
     id: readString(record['id'], `${where}.id`),
     description: readString(record['description'], `${where}.description`),
-    payerId: readString(record['payerId'], `${where}.payerId`),
+    collector: readCollector(record, where),
     amount: readAmount(record['amount'], `${where}.amount`),
     participants: participants.map((participant, at) =>
       readParticipant(participant, `${where}.participants[${at}]`),
     ),
   };
+  if (typeof record['collectionKey'] === 'string') expense.collectionKey = record['collectionKey'];
   if (typeof record['receiptUrl'] === 'string') expense.receiptUrl = record['receiptUrl'];
   return expense;
 }

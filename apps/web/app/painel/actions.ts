@@ -1,6 +1,6 @@
 'use server';
 
-import { parseBRL, settle } from '@treasurer/core';
+import { CLUB, parseBRL, settle, type Collector } from '@treasurer/core';
 import {
   addMember,
   appendEntries,
@@ -53,6 +53,9 @@ export async function addExpense(_: ActionResult, form: FormData): Promise<Actio
   const description = String(form.get('description') ?? '').trim();
   const payerId = String(form.get('payerId') ?? '');
   if (!description || !payerId) return { error: t.errors.required };
+  // 'club' is the reserved option in the picker: the club paid, and the club collects (D25).
+  const collector: Collector = payerId === 'club' ? CLUB : { kind: 'member', memberId: payerId };
+  const collectionKey = String(form.get('collectionKey') ?? '').trim();
 
   // D20: amounts are typed as text and parsed, never coerced by the browser.
   let amount;
@@ -66,7 +69,8 @@ export async function addExpense(_: ActionResult, form: FormData): Promise<Actio
   await recordExpense(await db(), eventId, {
     id: newId(),
     description,
-    payerId,
+    collector,
+    ...(collectionKey ? { collectionKey } : {}),
     amount,
     // D12: empty means "everyone on the roster", resolved when the event is read back.
     participants: [],

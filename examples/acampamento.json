@@ -60,23 +60,26 @@
       {
         "id": "carne",
         "description": "Carne",
-        "payerId": "m01",
         "amount": "155,00",
-        "participants": ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10"]
+        "participants": ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10"],
+        "collectedBy": "m01",
+        "collectionKey": "41999000001"
       },
       {
         "id": "mercado",
         "description": "Mercado (janta)",
-        "payerId": "m02",
         "amount": "158,73",
-        "participants": ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10"]
+        "participants": ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10"],
+        "collectedBy": "m02",
+        "collectionKey": "41999000002"
       },
       {
         "id": "compras",
         "description": "Compras",
-        "payerId": "m03",
         "amount": "161,47",
-        "participants": ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10"]
+        "participants": ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10"],
+        "collectedBy": "club",
+        "collectionKey": "41999000099"
       }
     ]
   }

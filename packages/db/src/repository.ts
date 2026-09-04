@@ -1,4 +1,5 @@
 import {
+  CLUB,
   cents,
   type Cents,
   type Event,
@@ -110,7 +111,8 @@ function toEvent(
   expenseRows: readonly {
     id: string;
     description: string;
-    payerId: string;
+    payerId: string | null;
+    collectionKey: string | null;
     amount: number;
     receiptUrl: string | null;
   }[],
@@ -126,10 +128,12 @@ function toEvent(
       const expense: Expense = {
         id: expenseRow.id,
         description: expenseRow.description,
-        payerId: expenseRow.payerId,
+        // A null payer is the club: it fronted the bill and collects it (D25).
+        collector: expenseRow.payerId ? { kind: 'member', memberId: expenseRow.payerId } : CLUB,
         amount: cents(expenseRow.amount),
         participants: sharesByExpense.get(expenseRow.id) ?? roster,
       };
+      if (expenseRow.collectionKey) expense.collectionKey = expenseRow.collectionKey;
       if (expenseRow.receiptUrl) expense.receiptUrl = expenseRow.receiptUrl;
       return expense;
     }),
@@ -401,7 +405,8 @@ export async function recordExpense(db: Db, eventId: string, expense: Expense): 
     id: expense.id,
     eventId,
     description: expense.description,
-    payerId: expense.payerId,
+    payerId: expense.collector.kind === 'member' ? expense.collector.memberId : null,
+    collectionKey: expense.collectionKey ?? null,
     amount: expense.amount,
     receiptUrl: expense.receiptUrl ?? null,
   });

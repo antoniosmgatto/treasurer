@@ -25,25 +25,32 @@ export interface LedgerEntry {
 }
 
 /**
- * One expense becomes one credit to whoever fronted it and one debit per participant. Shares are
- * rounded up, so they add up to a little more than the bill; that difference is credited back to
- * the payer as its own entry rather than folded into a share, which keeps the expense balanced
- * and the rounding visible (D1).
+ * One expense becomes one debit per participant, and — when a member collects it — one credit to
+ * them for what they fronted. Shares are rounded up, so they add up to a little more than the
+ * bill; that difference is credited to the collector as its own entry rather than folded into a
+ * share, which keeps the expense balanced and the rounding visible (D1, D24).
+ *
+ * A bill the club collects produces debits only. The club is not a member row and holds no
+ * balance (D25), so there is nothing to credit: the money simply leaves the members and reaches
+ * the club's key.
  */
 export function entriesForExpense(expense: Expense, eventId?: string): LedgerEntry[] {
   const { shares, rounding } = splitByWeight(expense.amount, expense.participants);
   const base = { eventId, expenseId: expense.id } as const;
+  const collector = expense.collector;
 
-  const entries: LedgerEntry[] = [
-    { ...base, memberId: expense.payerId, kind: 'front', amount: expense.amount },
-  ];
+  const entries: LedgerEntry[] = [];
+
+  if (collector.kind === 'member') {
+    entries.push({ ...base, memberId: collector.memberId, kind: 'front', amount: expense.amount });
+  }
 
   for (const [memberId, share] of shares) {
     entries.push({ ...base, memberId, kind: 'share', amount: cents(-share) });
   }
 
-  if (rounding !== 0) {
-    entries.push({ ...base, memberId: expense.payerId, kind: 'rounding', amount: rounding });
+  if (rounding !== 0 && collector.kind === 'member') {
+    entries.push({ ...base, memberId: collector.memberId, kind: 'rounding', amount: rounding });
   }
 
   return entries;

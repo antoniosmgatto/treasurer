@@ -14,10 +14,14 @@ describe('chatSummary', () => {
     expect(text).toContain('Total: R$ 475,20');
   });
 
-  it('lists what each member pays and what each fronter receives', () => {
+  it('gives each payer a total and shows how it splits between collectors', () => {
     expect(text).toContain('• Membro 04: R$ 47,53');
-    expect(text).toContain('• Membro 02: R$ 111,27');
-    expect(text).toContain('• Membro 03: R$ 113,97');
+    expect(text).toContain('↳ Membro 01 R$ 15,50 · Membro 02 R$ 15,88 · Clube R$ 16,15');
+  });
+
+  it('lists each collector with what they take in and the key to send it to', () => {
+    expect(text).toContain('• Membro 01: R$ 139,50 — chave 41999000001');
+    expect(text).toContain('• Clube: R$ 161,50 — chave 41999000099');
   });
 
   it('names the rounding instead of hiding it, and says where it goes', () => {
@@ -26,16 +30,19 @@ describe('chatSummary', () => {
 });
 
 describe('memberSummary', () => {
-  it('shows the lines and the total to pay', () => {
+  it('lists one line per collector and totals them', () => {
     const text = memberSummary(member('m04'));
     expect(text).toContain('*Membro 04* (código 04)');
     expect(text).toContain('• Carne: R$ 15,50');
-    expect(text).toContain('*A pagar: R$ 47,53*');
+    expect(text).toContain('• Membro 02: R$ 15,88 — chave 41999000002');
+    expect(text).toContain('*Total: R$ 47,53*');
   });
 
-  it('shows what a member fronted alongside their own share of it', () => {
+  it('shows both sides for someone who collects a bill and owes on others', () => {
     const text = memberSummary(member('m02'));
     expect(text).toContain('Mercado (janta): você pagou R$ 158,73');
-    expect(text).toContain('*Você recebe: R$ 111,27*');
+    // Gross: he still pays the other two collectors in full.
+    expect(text).toContain('*Total: R$ 31,65*');
+    expect(text).toContain('*Você recebe: R$ 142,92*');
   });
 });

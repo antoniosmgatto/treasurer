@@ -134,10 +134,14 @@ export const expenses = pgTable(
       .notNull()
       .references(() => events.id, { onDelete: 'cascade' }),
     description: text('description').notNull(),
-    /** Whoever fronted the money. May be the caixa. */
-    payerId: text('payer_id')
-      .notNull()
-      .references(() => members.id),
+    /**
+     * Who fronted the money and collects the shares back. NULL means the club paid for it and
+     * collects it to the club's key — the club is a label, never a member row (D25).
+     */
+    payerId: text('payer_id').references(() => members.id),
+    /** Where the collector wants the money, typed when the bill is added. Not stored on the
+     * member: a key belongs to a bill, not to a profile (D8). */
+    collectionKey: text('collection_key'),
     amount: amountCents('amount_cents'),
     receiptUrl: text('receipt_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

@@ -57,7 +57,7 @@ describe('the event roster (D12)', () => {
     await recordExpense(db, EVENT, {
       id: 'carne',
       description: 'Carne',
-      payerId: 'm01',
+      collector: { kind: 'member', memberId: 'm01' },
       amount: 9000 as never,
       participants: [],
     });
@@ -74,7 +74,7 @@ describe('the event roster (D12)', () => {
     await recordExpense(db, EVENT, {
       id: 'cerveja',
       description: 'Cerveja',
-      payerId: 'm01',
+      collector: { kind: 'member', memberId: 'm01' },
       amount: 6000 as never,
       participants: [
         { memberId: 'm01', weight: 1 },
@@ -95,7 +95,7 @@ describe('the event roster (D12)', () => {
     await recordExpense(db, EVENT, {
       id: 'carne',
       description: 'Carne',
-      payerId: 'm01',
+      collector: { kind: 'member', memberId: 'm01' },
       amount: 9000 as never,
       participants: [],
     });
@@ -111,14 +111,14 @@ describe('an event with no roster saved', () => {
     await recordExpense(db, EVENT, {
       id: 'beras',
       description: 'Beras',
-      payerId: 'm01',
+      collector: { kind: 'member', memberId: 'm01' },
       amount: 15099 as never,
       participants: [],
     });
     await recordExpense(db, EVENT, {
       id: 'carne',
       description: 'Carne',
-      payerId: 'm02',
+      collector: { kind: 'member', memberId: 'm02' },
       amount: 5000 as never,
       participants: [],
     });
@@ -141,7 +141,7 @@ describe('an event with no roster saved', () => {
     await recordExpense(db, EVENT, {
       id: 'carne',
       description: 'Carne',
-      payerId: 'm01',
+      collector: { kind: 'member', memberId: 'm01' },
       amount: 9000 as never,
       participants: [],
     });
@@ -155,7 +155,7 @@ describe('an event with no roster saved', () => {
     await recordExpense(db, EVENT, {
       id: 'carne',
       description: 'Carne',
-      payerId: 'm01',
+      collector: { kind: 'member', memberId: 'm01' },
       amount: 9000 as never,
       participants: [],
     });
@@ -204,7 +204,7 @@ describe('soft delete (D19)', () => {
     await recordExpense(db, EVENT, {
       id: 'carne',
       description: 'Carne',
-      payerId: 'm01',
+      collector: { kind: 'member', memberId: 'm01' },
       amount: 9000 as never,
       participants: [],
     });
@@ -238,7 +238,7 @@ describe('recording a payment (D13)', () => {
     await recordExpense(db, EVENT, {
       id: 'carne',
       description: 'Carne',
-      payerId: 'm01',
+      collector: { kind: 'member', memberId: 'm01' },
       amount: 9000 as never,
       participants: [],
     });
@@ -265,7 +265,7 @@ describe('reimbursing whoever fronted the money', () => {
     await recordExpense(db, EVENT, {
       id: 'carne',
       description: 'Carne',
-      payerId: 'm01',
+      collector: { kind: 'member', memberId: 'm01' },
       amount: 9000 as never,
       participants: [],
     });
@@ -296,7 +296,7 @@ describe('reimbursing whoever fronted the money', () => {
     await recordExpense(db, EVENT, {
       id: 'mercado',
       description: 'Mercado',
-      payerId: 'm02',
+      collector: { kind: 'member', memberId: 'm02' },
       amount: 5000 as never,
       participants: [],
     });
