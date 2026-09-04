@@ -125,9 +125,10 @@ new one and the old URL stops working immediately. Member links are unaffected.
 **The database is not a secret store.** Member Pix keys are deliberately not persisted (D8).
 Nothing in the database is worth more than the links themselves.
 
-**Rounding surplus accrues to the treasury.** Roughly R$4,44 on a ten-person event, and it is
-systematically uneven — the member with the highest code always pays a little more (D1). Tell
-the group; it is small, but it is not nothing and it is not random.
+**Rounding goes to whoever collected the bill.** Shares round up to the cent so a collector is
+never left short: about R$0,10 across a ten-person event with three bills, split between the three
+people who fronted them (D1, D24). It is disclosed on every member's page rather than absorbed
+quietly, but it is centavos — this is a footnote, not a conversation to have with the group.
 
 **A deployment refuses to start without `DATABASE_URL`.** Locally, no connection string means a
 Postgres in a file under `.data/`. On Vercel that fallback would write to a filesystem that is
