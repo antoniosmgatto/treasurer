@@ -1,0 +1,64 @@
+name: Neon branch cleanup
+
+# The Vercel-managed Neon integration creates a database branch per preview deployment and only
+# removes it when Vercel expires the deployment — 30 days on Hobby, and never for the last 20
+# Ready preview deployments. On a small project that means every branch survives its pull request
+# and the account walks into its branch limit, at which point deployments fail during resource
+# provisioning with no build log to explain it.
+#
+# So: delete the preview branch once its git branch is gone.
+
+on:
+  schedule:
+    # 05:00 UTC, a couple of hours after most merges land here.
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: neon-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Delete Neon branches whose git branch is gone
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${NEON_API_KEY}" ] || [ -z "${NEON_PROJECT_ID}" ]; then
+            echo "::error::NEON_API_KEY secret or NEON_PROJECT_ID variable is missing"
+            exit 1
+          fi
+
+          neon() { npx --yes neonctl@4 "$@" --project-id "${NEON_PROJECT_ID}"; }
+
+          # Only ever consider branches the integration created. The default branch holds the
+          # real database and carries no such prefix, so it can never be selected here.
+          neon branches list -o json \
+            | jq -r '.[] | select(.name | startswith("preview/")) | .name' > branches.txt
+
+          kept=0
+          deleted=0
+          while IFS= read -r branch; do
+            [ -n "${branch}" ] || continue
+            git_branch="${branch#preview/}"
+
+            if gh api "repos/${REPO}/branches/${git_branch}" --silent 2>/dev/null; then
+              echo "keep    ${branch} — git branch still exists"
+              kept=$((kept + 1))
+            else
+              echo "delete  ${branch} — git branch is gone"
+              neon branches delete "${branch}"
+              deleted=$((deleted + 1))
+            fi
+          done < branches.txt
+
+          echo "### Neon cleanup: ${deleted} deleted, ${kept} kept" >> "${GITHUB_STEP_SUMMARY}"

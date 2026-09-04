@@ -53,6 +53,22 @@ The integration sets `DATABASE_URL` on the project automatically, already pointi
 
 Redeploy once the variables exist, from **Deployments → ⋯ → Redeploy**.
 
+### Preview branches fill up
+
+The integration creates a Neon branch for every preview deployment, named `preview/<git-branch>`,
+and only removes it when Vercel expires the deployment — 30 days on Hobby, and never for the last
+twenty preview deployments still in Ready. On a project with a handful of pull requests a week
+that reaches the free plan's branch limit, and then deployments fail with
+`Resource provisioning failed` **before the build starts**, so there is no build log saying why.
+
+`.github/workflows/neon-cleanup.yml` deletes a `preview/*` branch once its git branch is gone. It
+needs the `NEON_API_KEY` secret and the `NEON_PROJECT_ID` variable on the repository:
+
+```sh
+gh secret set NEON_API_KEY      # Neon Console → Account settings → API keys
+gh variable set NEON_PROJECT_ID # the value the integration already sets on Vercel
+```
+
 Billing for a database created this way runs through your Vercel invoice rather than a separate
 Neon account. If you would rather keep them apart, create the project at
 [neon.tech](https://neon.tech) instead, copy the pooled connection string — the host contains
