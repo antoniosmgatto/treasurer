@@ -8,7 +8,15 @@ import { Label } from '@/components/ui/label';
 import { db } from '@/lib/db';
 import { t } from '@/lib/labels';
 import { requireGroup } from '@/lib/session';
-import { addExpense, createEvent, markPaid, publish, removeExpense, saveRoster } from './actions';
+import {
+  addExpense,
+  createEvent,
+  markPaid,
+  markReimbursed,
+  publish,
+  removeExpense,
+  saveRoster,
+} from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -157,7 +165,12 @@ export default async function PanelPage() {
             <tbody>
               {settlement.members.map((member) => {
                 const balance = balances.get(member.memberId) ?? 0;
-                const settled = event.chargesPublishedAt !== null && balance >= 0;
+                // Nothing charged means the member fronted money and is owed it back.
+                const fronter = member.charged === null;
+                // A debtor's balance climbs towards zero as they pay; a fronter's falls towards
+                // zero as the caixa pays them back. Both are settled when they reach it.
+                const settled =
+                  event.chargesPublishedAt !== null && (fronter ? balance <= 0 : balance >= 0);
                 return (
                   <tr key={member.memberId} className="border-t">
                     <td className="py-2">
@@ -173,18 +186,20 @@ export default async function PanelPage() {
                       {member.charged === null ? formatBRL(member.net) : formatBRL(member.charged)}
                     </td>
                     <td className="py-2 text-right">
-                      {member.charged === null ? (
-                        '—'
-                      ) : settled ? (
+                      {settled ? (
                         <span className="text-muted-foreground">✓</span>
                       ) : (
-                        /* D13: one tap records that the money arrived. */
-                        <ActionForm action={markPaid}>
+                        /* D13: one tap records that the money moved, in whichever direction. */
+                        <ActionForm action={fronter ? markReimbursed : markPaid}>
                           <input type="hidden" name="eventId" value={event.id} />
                           <input type="hidden" name="memberId" value={member.memberId} />
-                          <input type="hidden" name="amount" value={String(member.charged)} />
+                          <input
+                            type="hidden"
+                            name="amount"
+                            value={String(fronter ? member.net : member.charged)}
+                          />
                           <SubmitButton variant="ghost" size="sm">
-                            {t.settlement.markPaid}
+                            {fronter ? t.settlement.markReimbursed : t.settlement.markPaid}
                           </SubmitButton>
                         </ActionForm>
                       )}

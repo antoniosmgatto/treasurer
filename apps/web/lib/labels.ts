@@ -35,6 +35,8 @@ export const t = {
     rounding: 'Arredondamento pro caixa',
     paid: 'Recebido',
     markPaid: 'Marcar como recebido',
+    markReimbursed: 'Marcar como devolvido',
+    reimbursed: 'Devolvido',
   },
 
   member: {

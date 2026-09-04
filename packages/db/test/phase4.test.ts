@@ -12,12 +12,13 @@ import {
   publishCharges,
   recordExpense,
   recordPayment,
+  recordReimbursement,
   retireMember,
   setRoster,
   softDeleteExpense,
   type Db,
 } from '../src/repository.js';
-import { events, groups, members } from '../src/schema.js';
+import { events, groups, ledgerEntries, members } from '../src/schema.js';
 import { freshDatabase } from './harness.js';
 
 const GROUP = 'clube';
@@ -187,5 +188,66 @@ describe('recording a payment (D13)', () => {
     // Owed 45,00 exactly, so the charge is 45,02: the cents are the code, never the amount (D1).
     expect(charged).toBe(4502);
     expect((await balancesFor(db, GROUP)).get('m02')).toBe(2);
+  });
+});
+
+describe('reimbursing whoever fronted the money', () => {
+  it('closes the event out to zero once the fronter has been paid back', async () => {
+    await setRoster(db, EVENT, [
+      { memberId: 'm01', weight: 1 },
+      { memberId: 'm02', weight: 1 },
+    ]);
+    await recordExpense(db, EVENT, {
+      id: 'carne',
+      description: 'Carne',
+      payerId: 'm01',
+      amount: 9000 as never,
+      participants: [],
+    });
+
+    const loaded = await loadEvent(db, EVENT);
+    const settlement = settle(loaded!.event, loaded!.members);
+    await appendEntries(db, GROUP, settlement.entries);
+
+    // m01 fronted 90,00 and consumed 45,00 of it, so the caixa owes them the other half.
+    const fronter = settlement.members.find((m) => m.memberId === 'm01')!;
+    expect(fronter.charged).toBeNull();
+    expect(fronter.net).toBe(4500);
+    expect((await balancesFor(db, GROUP)).get('m01')).toBe(4500);
+
+    await recordReimbursement(db, GROUP, {
+      memberId: 'm01',
+      eventId: EVENT,
+      amount: fronter.net,
+    });
+
+    // Paid back, so the group owes them nothing. Without this the fronter stays a creditor
+    // forever and the event can never reach quitado.
+    expect((await balancesFor(db, GROUP)).get('m01')).toBe(0);
+  });
+
+  it('records the payout as its own entry rather than editing the credit (D3)', async () => {
+    await setRoster(db, EVENT, [{ memberId: 'm01', weight: 1 }]);
+    await recordExpense(db, EVENT, {
+      id: 'mercado',
+      description: 'Mercado',
+      payerId: 'm02',
+      amount: 5000 as never,
+      participants: [],
+    });
+
+    const loaded = await loadEvent(db, EVENT);
+    await appendEntries(db, GROUP, settle(loaded!.event, loaded!.members).entries);
+    await recordReimbursement(db, GROUP, {
+      memberId: 'm02',
+      eventId: EVENT,
+      amount: 5000 as never,
+    });
+
+    const kinds = (
+      await db.select().from(ledgerEntries).where(eq(ledgerEntries.memberId, 'm02'))
+    ).map((entry) => entry.kind);
+    expect(kinds).toContain('reimbursement');
+    expect(kinds).toContain('front');
   });
 });

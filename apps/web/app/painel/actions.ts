@@ -11,6 +11,7 @@ import {
   publishCharges,
   recordExpense,
   recordPayment,
+  recordReimbursement,
   retireMember,
   setRoster,
   softDeleteExpense,
@@ -116,6 +117,27 @@ export async function markPaid(_: ActionResult, form: FormData): Promise<ActionR
   await recordPayment(connection, groupId, {
     memberId: String(form.get('memberId')),
     eventId,
+    amount,
+  });
+  revalidatePath('/painel');
+  return {};
+}
+
+/** D13 again, in the direction that closes the event: the caixa paying a fronter back. */
+export async function markReimbursed(_: ActionResult, form: FormData): Promise<ActionResult> {
+  const groupId = await requireGroup();
+  const connection = await db();
+
+  let amount;
+  try {
+    amount = parseBRL(String(form.get('amount') ?? ''));
+  } catch {
+    return { error: t.errors.badAmount };
+  }
+
+  await recordReimbursement(connection, groupId, {
+    memberId: String(form.get('memberId')),
+    eventId: String(form.get('eventId')),
     amount,
   });
   revalidatePath('/painel');
