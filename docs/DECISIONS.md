@@ -193,3 +193,17 @@ Applied migrations are now recorded in a `_migration` table and skipped on later
 that was migrated before that table existed is adopted by recording the baseline rather than
 attempting to create the schema twice — only the initial migration ever shipped untracked, so it
 is the only one that may be assumed.
+
+## D23 — The write link can be reissued
+
+`seed` printed the links once and nothing could print them again. Two things followed from that.
+A treasurer who lost their terminal scrollback was locked out of their own panel, with the token
+recoverable only by hand-written SQL. And a write link that leaked — a screenshot, a pasted chat
+message, a support thread — stayed valid forever, because there was no way to invalidate it.
+
+`treasurer links` reprints them, and `treasurer links --rotate` issues a new write token. The old
+URL stops resolving immediately; member links are untouched, since they leak independently and
+revoking all of them to fix one is the wrong trade.
+
+This is what D9's two links imply once they exist in the world rather than in a design: an
+unguessable URL is a password, and passwords have to be replaceable.

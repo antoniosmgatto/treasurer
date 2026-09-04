@@ -69,6 +69,10 @@ pnpm cli seed examples/club.json   # prints the links to open
 pnpm dev
 ```
 
+`pnpm cli links` reprints those links whenever you lose them, and `pnpm cli links --rotate`
+reissues the treasurer's — the write link is a password that happens to be a URL, so pasting it
+somewhere public should cost a new link rather than a new club.
+
 To put it online, see [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## Roadmap
