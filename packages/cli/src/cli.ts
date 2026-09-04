@@ -1,5 +1,13 @@
 #!/usr/bin/env node
-import { applyMigrations, connect, createGroup, disconnect } from '@treasurer/db';
+import {
+  allGroups,
+  applyMigrations,
+  connect,
+  createGroup,
+  disconnect,
+  linksFor,
+  rotateWriteToken,
+} from '@treasurer/db';
 import { readFileSync } from 'node:fs';
 import {
   chatSummary,
@@ -17,6 +25,7 @@ const USAGE = `treasurer — settle an event, or bootstrap a club
   treasurer <file.json>              per-member table and chat summary
   treasurer <file.json> --member ID  one member's own breakdown
   treasurer seed <club.json>         create the club and print everyone's links
+  treasurer links [--rotate]         reprint the links; --rotate reissues the write link
   treasurer migrate                  apply migrations to DATABASE_URL
 
 Settling is a test harness (D5); seeding is how a club first exists (D18).
@@ -102,6 +111,51 @@ async function seed(path: string): Promise<number> {
   }
 }
 
+/**
+ * Reprints what `seed` printed once, and can reissue the write link.
+ *
+ * A write token is a password that happens to be a URL. Losing it locks the treasurer out of
+ * their own club; pasting it somewhere public should cost a new link rather than a new club.
+ */
+async function links(rotate: boolean): Promise<number> {
+  const db = await connect();
+  try {
+    const groups = await allGroups(db);
+    if (groups.length === 0) {
+      console.error('Nenhum clube neste banco. Rode `treasurer seed` primeiro.');
+      return 1;
+    }
+    if (groups.length > 1) {
+      console.error('Mais de um clube neste banco; este comando ainda não sabe escolher:');
+      for (const group of groups) console.error(`  ${group.id}  ${group.name}`);
+      return 1;
+    }
+
+    const only = groups[0]!;
+    if (rotate) {
+      const replaced = await rotateWriteToken(db, only.id);
+      if (replaced) console.log('Link do tesoureiro reemitido — o anterior parou de funcionar.\n');
+    }
+
+    const found = await linksFor(db, only.id);
+    if (!found) {
+      console.error('Clube não encontrado.');
+      return 1;
+    }
+
+    console.log(`${only.name}\n`);
+    console.log('Link do tesoureiro (guarde, dá acesso de escrita):');
+    console.log(`  /acesso/${found.writeToken}\n`);
+    console.log('Links dos membros:');
+    for (const link of found.links) {
+      console.log(`  ${formatCode(link.code)}  ${link.name.padEnd(20)}  ${link.url}`);
+    }
+    return 0;
+  } finally {
+    await disconnect(db);
+  }
+}
+
 /** Applies the schema to whatever DATABASE_URL points at — the deploy step. */
 async function migrate(): Promise<number> {
   const target = process.env['DATABASE_URL'];
@@ -168,14 +222,16 @@ try {
   process.exitCode =
     argv[0] === 'migrate'
       ? await migrate()
-      : argv[0] === 'seed'
-        ? await seed(
-            argv[1] ??
-              (() => {
-                throw new ParseError('seed needs a file: treasurer seed club.json');
-              })(),
-          )
-        : main(argv);
+      : argv[0] === 'links'
+        ? await links(argv.includes('--rotate'))
+        : argv[0] === 'seed'
+          ? await seed(
+              argv[1] ??
+                (() => {
+                  throw new ParseError('seed needs a file: treasurer seed club.json');
+                })(),
+            )
+          : main(argv);
 } catch (error) {
   if (error instanceof InvalidLedgerError || error instanceof ParseError) {
     console.error(error.message);

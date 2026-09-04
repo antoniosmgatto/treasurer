@@ -3,9 +3,12 @@ import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { newToken } from '../src/ids.js';
 import {
+  allGroups,
   appendEntries,
   balancesFor,
+  groupByWriteToken,
   insertMembers,
+  linksFor,
   loadEvent,
   memberByReadToken,
   openEventFor,
@@ -14,6 +17,7 @@ import {
   recordPayment,
   recordReimbursement,
   retireMember,
+  rotateWriteToken,
   setRoster,
   softDeleteExpense,
   type Db,
@@ -249,5 +253,34 @@ describe('reimbursing whoever fronted the money', () => {
     ).map((entry) => entry.kind);
     expect(kinds).toContain('reimbursement');
     expect(kinds).toContain('front');
+  });
+});
+
+describe('reissuing the links', () => {
+  it('reprints what seed printed once, treasury excluded', async () => {
+    const [only] = await allGroups(db);
+    const found = await linksFor(db, only!.id);
+
+    expect(found?.links.map((link) => link.name)).toEqual(['Membro 01', 'Membro 02', 'Membro 03']);
+    // The caixa is a member row but never a person with a link (D6).
+    expect(found?.links.some((link) => link.name === 'Caixa')).toBe(false);
+    expect(found?.writeToken).toHaveLength(22);
+  });
+
+  it('rotates the write token so a leaked link stops working', async () => {
+    const before = (await linksFor(db, GROUP))!.writeToken;
+    expect(await groupByWriteToken(db, before)).toBe(GROUP);
+
+    const after = await rotateWriteToken(db, GROUP);
+
+    expect(after).not.toBe(before);
+    // The point of rotating: the old URL is now worthless to whoever has it.
+    expect(await groupByWriteToken(db, before!)).toBeNull();
+    expect(await groupByWriteToken(db, after!)).toBe(GROUP);
+  });
+
+  it('returns null for a group that does not exist', async () => {
+    expect(await linksFor(db, 'no-such-group')).toBeNull();
+    expect(await rotateWriteToken(db, 'no-such-group')).toBeNull();
   });
 });

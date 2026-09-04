@@ -244,6 +244,50 @@ export async function createGroup(
   };
 }
 
+/** Every club in the database, for a CLI that has to name one before it can act on it. */
+export async function allGroups(db: Db): Promise<{ id: string; name: string }[]> {
+  return db
+    .select({ id: groups.id, name: groups.name })
+    .from(groups)
+    .orderBy(asc(groups.createdAt));
+}
+
+/**
+ * Reissues the links `seed` printed once. Without this the only copy of a treasurer's write token
+ * is their terminal scrollback, and a lost one locks the club out of its own panel.
+ */
+export async function linksFor(db: Db, groupId: string): Promise<CreatedGroup | null> {
+  const [group] = await db.select().from(groups).where(eq(groups.id, groupId)).limit(1);
+  if (!group) return null;
+
+  const rows = await db
+    .select()
+    .from(members)
+    .where(liveMembers(groupId))
+    .orderBy(asc(members.code));
+  return {
+    groupId,
+    writeToken: group.writeToken,
+    links: rows
+      .filter((row) => !row.isTreasury)
+      .map((row) => ({ name: row.name, code: row.code, url: `/e/${row.readToken}` })),
+  };
+}
+
+/**
+ * A write token is a password that happens to live in a URL, so it has to be replaceable. Pasting
+ * one into a chat, a screenshot or a support thread should cost a new link, not a new club.
+ */
+export async function rotateWriteToken(db: Db, groupId: string): Promise<string | null> {
+  const token = newToken();
+  const updated = await db
+    .update(groups)
+    .set({ writeToken: token })
+    .where(eq(groups.id, groupId))
+    .returning({ id: groups.id });
+  return updated.length > 0 ? token : null;
+}
+
 export async function groupByWriteToken(db: Db, token: string): Promise<string | null> {
   const [row] = await db
     .select({ id: groups.id })

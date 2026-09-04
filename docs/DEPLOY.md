@@ -113,8 +113,12 @@ Prepend your deployment's domain to each. The treasurer link is the write link �
 once sets a cookie and redirects to a clean URL, so it should be opened by the treasurer and
 nobody else. Member links are read-only and safe to send individually.
 
-Seeding runs migrations itself, so step 2 is only strictly needed when you are updating the
+Seeding runs migrations itself, so step 3 is only strictly needed when you are updating the
 schema of a database that already exists.
+
+If you lose the output, `pnpm cli links` prints it again against the same `DATABASE_URL`. If the
+treasurer's link leaks — a screenshot, a pasted chat message — `pnpm cli links --rotate` issues a
+new one and the old URL stops working immediately. Member links are unaffected.
 
 ## Notes
 
@@ -131,8 +135,9 @@ thrown away between invocations, so the data would appear to save and then vanis
 `connect()` throws instead when `VERCEL` or `NODE_ENV=production` is set. A deploy that fails
 loudly beats a club that loses its ledger.
 
-**PGlite stays the local default.** With no `DATABASE_URL`, everything falls back to a Postgres
-in a file under `.data/`, so development and tests need no service and no credentials. Only
+**Nothing here is needed to develop.** `docker compose up -d` gives you a local Postgres matching
+this one, and with no `DATABASE_URL` at all the app still falls back to a Postgres in a file under
+`.data/` (D21). Tests never touch either — they open an in-memory database per file. Only
 deployment needs Neon.
 
 **Free-tier caveat.** Neon suspends a database after five minutes idle and wakes it on the next
