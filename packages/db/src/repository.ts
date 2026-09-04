@@ -12,6 +12,7 @@ import { newId, newToken } from './ids.js';
 import {
   eventParticipants,
   events,
+  groups,
   expenses,
   ledgerEntries,
   members,
@@ -207,6 +208,80 @@ export async function softDeleteExpense(db: Db, groupId: string, expenseId: stri
       })),
     );
   }
+}
+
+export interface CreatedGroup {
+  groupId: string;
+  writeToken: string;
+  links: { name: string; code: number; url: string }[];
+}
+
+/** D18: the CLI bootstraps a club, because the admin page needs a token this call issues. */
+export async function createGroup(
+  db: Db,
+  input: { name: string; members: readonly Omit<Member, 'id'>[] },
+): Promise<CreatedGroup> {
+  const groupId = newId();
+  const writeToken = newToken();
+
+  await db.insert(groups).values({
+    id: groupId,
+    name: input.name,
+    writeToken,
+    readToken: newToken(),
+  });
+
+  const rows = input.members.map((member) => ({ ...member, id: newId() }));
+  await insertMembers(db, groupId, rows);
+
+  const created = await db.select().from(members).where(eq(members.groupId, groupId));
+  return {
+    groupId,
+    writeToken,
+    links: created
+      .filter((row) => !row.isTreasury)
+      .map((row) => ({ name: row.name, code: row.code, url: `/e/${row.readToken}` })),
+  };
+}
+
+export async function groupByWriteToken(db: Db, token: string): Promise<string | null> {
+  const [row] = await db
+    .select({ id: groups.id })
+    .from(groups)
+    .where(eq(groups.writeToken, token))
+    .limit(1);
+  return row?.id ?? null;
+}
+
+export async function membersOf(db: Db, groupId: string): Promise<Member[]> {
+  const rows = await db
+    .select()
+    .from(members)
+    .where(liveMembers(groupId))
+    .orderBy(asc(members.code));
+  return rows.map(toMember);
+}
+
+export async function openEvent(
+  db: Db,
+  input: { groupId: string; name: string; date: string },
+): Promise<string> {
+  const id = newId();
+  await db
+    .insert(events)
+    .values({ id, groupId: input.groupId, name: input.name, date: input.date });
+  return id;
+}
+
+export async function addMember(
+  db: Db,
+  groupId: string,
+  name: string,
+): Promise<{ id: string; code: number }> {
+  const code = await nextCode(db, groupId);
+  const id = newId();
+  await insertMembers(db, groupId, [{ id, name, code, isTreasury: false }]);
+  return { id, code };
 }
 
 export async function retireMember(db: Db, memberId: string): Promise<void> {

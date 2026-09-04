@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@treasurer/core": "workspace:*",
-    "drizzle-orm": "^0.45.2"
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

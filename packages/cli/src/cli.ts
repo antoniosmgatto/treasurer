@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { applyMigrations, connect, createGroup } from '@treasurer/db';
 import { readFileSync } from 'node:fs';
 import {
   chatSummary,
@@ -11,12 +12,14 @@ import {
   settle,
 } from '@treasurer/core';
 
-const USAGE = `treasurer — settle an event from a JSON file
+const USAGE = `treasurer — settle an event, or bootstrap a club
 
   treasurer <file.json>              per-member table and chat summary
   treasurer <file.json> --member ID  one member's own breakdown
+  treasurer seed <club.json>         create the club and print everyone's links
 
-A test harness, not the product (D5). The file shape is in examples/.`;
+Settling is a test harness (D5); seeding is how a club first exists (D18).
+The file shapes are in examples/.`;
 
 function pad(text: string, width: number): string {
   return text.length >= width ? text : text + ' '.repeat(width - text.length);
@@ -24,6 +27,42 @@ function pad(text: string, width: number): string {
 
 function padStart(text: string, width: number): string {
   return text.length >= width ? text : ' '.repeat(width - text.length) + text;
+}
+
+/**
+ * D18: the admin page cannot create the first club, because reaching it needs a token that this
+ * command issues. Members are read from the same JSON the settler already understands.
+ */
+async function seed(path: string): Promise<number> {
+  const file = JSON.parse(readFileSync(path, 'utf8')) as {
+    name?: string;
+    members?: { name: string; code?: number; isTreasury?: boolean }[];
+  };
+  if (!Array.isArray(file.members)) {
+    console.error('Expected { "name": "...", "members": [...] }');
+    return 1;
+  }
+
+  const db = await connect();
+  await applyMigrations(db);
+
+  const created = await createGroup(db, {
+    name: file.name ?? 'Clube',
+    members: file.members.map((member, index) => ({
+      name: member.name,
+      code: member.code ?? index,
+      isTreasury: member.isTreasury === true,
+    })),
+  });
+
+  console.log(`Clube criado.\n`);
+  console.log(`Link do tesoureiro (guarde, dá acesso de escrita):`);
+  console.log(`  /acesso/${created.writeToken}\n`);
+  console.log(`Links dos membros:`);
+  for (const link of created.links) {
+    console.log(`  ${formatCode(link.code)}  ${link.name.padEnd(20)}  ${link.url}`);
+  }
+  return 0;
 }
 
 function main(argv: string[]): number {
@@ -73,7 +112,16 @@ function main(argv: string[]): number {
 }
 
 try {
-  process.exitCode = main(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  process.exitCode =
+    argv[0] === 'seed'
+      ? await seed(
+          argv[1] ??
+            (() => {
+              throw new ParseError('seed needs a file: treasurer seed club.json');
+            })(),
+        )
+      : main(argv);
 } catch (error) {
   if (error instanceof InvalidLedgerError || error instanceof ParseError) {
     console.error(error.message);

@@ -1,0 +1,11 @@
+{
+  "name": "Moto Clube",
+  "members": [
+    { "name": "Caixa do Clube", "code": 99, "isTreasury": true },
+    { "name": "Membro 01" },
+    { "name": "Membro 02" },
+    { "name": "Membro 03" },
+    { "name": "Membro 04" },
+    { "name": "Membro 05" }
+  ]
+}

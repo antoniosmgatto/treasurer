@@ -9,6 +9,7 @@
     "treasurer": "./dist/cli.js"
   },
   "dependencies": {
-    "@treasurer/core": "workspace:*"
+    "@treasurer/core": "workspace:*",
+    "@treasurer/db": "workspace:*"
   }
 }
