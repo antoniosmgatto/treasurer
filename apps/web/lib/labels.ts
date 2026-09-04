@@ -37,6 +37,8 @@ export const t = {
     markPaid: 'Marcar como recebido',
     markReimbursed: 'Marcar como devolvido',
     reimbursed: 'Devolvido',
+    copy: 'Copiar resumo pro zap',
+    copied: 'Copiado!',
   },
 
   member: {

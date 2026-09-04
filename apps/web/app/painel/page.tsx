@@ -1,7 +1,8 @@
-import { formatBRL, formatCode, settle } from '@treasurer/core';
+import { chatSummary, formatBRL, formatCode, settle } from '@treasurer/core';
 import { balancesFor, loadEvent, membersOf, openEventFor } from '@treasurer/db';
 import Link from 'next/link';
 import { ActionForm } from '@/components/action-form';
+import { CopySummary } from '@/components/copy-summary';
 import { SubmitButton } from '@/components/submit-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -219,8 +220,13 @@ export default async function PanelPage() {
               <SubmitButton>{t.event.publish}</SubmitButton>
             </ActionForm>
           )}
-          {event.chargesPublishedAt && (
-            <p className="text-muted-foreground text-sm">{t.event.published}</p>
+          {event.chargesPublishedAt && loaded && (
+            <>
+              <p className="text-muted-foreground text-sm">{t.event.published}</p>
+              {/* Only once published: pasting amounts that are still moving is how a group chat
+                  became the ledger in the first place (D15). */}
+              <CopySummary text={chatSummary(loaded.event, settlement)} />
+            </>
           )}
         </section>
       )}
