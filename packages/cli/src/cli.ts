@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { applyMigrations, connect, createGroup } from '@treasurer/db';
+import { applyMigrations, connect, createGroup, disconnect } from '@treasurer/db';
 import { readFileSync } from 'node:fs';
 import {
   chatSummary,
@@ -75,25 +75,31 @@ async function seed(path: string): Promise<number> {
   }
 
   const db = await connect();
-  await applyMigrations(db);
+  try {
+    await applyMigrations(db);
 
-  const created = await createGroup(db, {
-    name: file.name ?? 'Clube',
-    members: file.members.map((member, index) => ({
-      name: member.name,
-      code: member.code ?? index,
-      isTreasury: member.isTreasury === true,
-    })),
-  });
+    const created = await createGroup(db, {
+      name: file.name ?? 'Clube',
+      members: file.members.map((member, index) => ({
+        name: member.name,
+        code: member.code ?? index,
+        isTreasury: member.isTreasury === true,
+      })),
+    });
 
-  console.log(`Clube criado.\n`);
-  console.log(`Link do tesoureiro (guarde, dá acesso de escrita):`);
-  console.log(`  /acesso/${created.writeToken}\n`);
-  console.log(`Links dos membros:`);
-  for (const link of created.links) {
-    console.log(`  ${formatCode(link.code)}  ${link.name.padEnd(20)}  ${link.url}`);
+    console.log(`Clube criado.\n`);
+    console.log(`Link do tesoureiro (guarde, dá acesso de escrita):`);
+    console.log(`  /acesso/${created.writeToken}\n`);
+    console.log(`Links dos membros:`);
+    for (const link of created.links) {
+      console.log(`  ${formatCode(link.code)}  ${link.name.padEnd(20)}  ${link.url}`);
+    }
+    return 0;
+  } finally {
+    // Otherwise postgres-js keeps its socket open and the command never exits, and PGlite keeps
+    // the directory lock that makes the next command hang.
+    await disconnect(db);
   }
-  return 0;
 }
 
 /** Applies the schema to whatever DATABASE_URL points at — the deploy step. */
@@ -101,9 +107,14 @@ async function migrate(): Promise<number> {
   const target = process.env['DATABASE_URL'];
   console.log(target ? 'Migrando o banco remoto…' : 'Migrando o banco local (.data)…');
 
-  await applyMigrations(await connect());
-  console.log('Pronto.');
-  return 0;
+  const db = await connect();
+  try {
+    await applyMigrations(db);
+    console.log('Pronto.');
+    return 0;
+  } finally {
+    await disconnect(db);
+  }
 }
 
 function main(argv: string[]): number {
