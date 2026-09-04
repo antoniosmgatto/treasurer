@@ -21,3 +21,5 @@ data/
 # Next.js build output and generated agent guidance.
 apps/web/.next/
 apps/web/.playwright-mcp/
+.vercel
+.env*
