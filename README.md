@@ -58,6 +58,9 @@ pnpm cli examples/acampamento.json
 Prints the per-member table, the amount to ask each person for, and a summary ready to paste
 into a group chat. `--member m03` shows one person's own breakdown, rounding included.
 
+For the web app, `pnpm dev` runs it against a Postgres in a local file — no database to install
+and no connection string to set. To put it online, see [`docs/DEPLOY.md`](docs/DEPLOY.md).
+
 ## Roadmap
 
 | Version | Scope                                                                                                    |
@@ -68,7 +71,8 @@ into a group chat. `--member m03` shows one person's own breakdown, rounding inc
 | v0.4    | Itemized receipts — scan the invoice, tag participants per item instead of per receipt                   |
 | v0.5    | Trust layer — member declares payment, uploads proof, treasurer confirms                                 |
 
-See [`docs/PLAN.md`](docs/PLAN.md) for the full plan.
+See [`docs/PLAN.md`](docs/PLAN.md) for the full plan, and [`docs/DECISIONS.md`](docs/DECISIONS.md)
+for why the design is the way it is.
 
 ## Stack
 
