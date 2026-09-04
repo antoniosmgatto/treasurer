@@ -75,18 +75,15 @@ somewhere public should cost a new link rather than a new club.
 
 To put it online, see [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
-## Roadmap
+## Direction
 
-| Version | Scope                                                                                                    |
-| ------- | -------------------------------------------------------------------------------------------------------- |
-| v0.1    | Group, events, expenses, shares, per-member settlement, copy-to-chat summary, access by unguessable link |
-| v0.2    | Collection — payment codes per member and one-tap personalized charge messages                           |
-| v0.3    | **Reconciliation** — import the bank statement, auto-match on code + amount, queue the rest              |
-| v0.4    | Itemized receipts — scan the invoice, tag participants per item instead of per receipt                   |
-| v0.5    | Trust layer — member declares payment, uploads proof, treasurer confirms                                 |
+v0.1 settles an event end to end. After that, in order: collection (payment codes and one-tap
+charge messages), then **reconciliation** — importing the bank statement and auto-matching on
+code plus amount, which is the thing the identification codes exist for and the one no expense
+splitter does. Itemized receipts and a payer/receiver trust layer come after.
 
-See [`docs/PLAN.md`](docs/PLAN.md) for the full plan, and [`docs/DECISIONS.md`](docs/DECISIONS.md)
-for why the design is the way it is.
+Planning and open work are tracked outside the repo; [`docs/DECISIONS.md`](docs/DECISIONS.md)
+records why the design is the way it is.
 
 ## Stack
 
