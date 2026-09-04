@@ -48,6 +48,16 @@ the cent.
 guest. The same field handles half portions — and exclusions are always shown, never silently
 dropped, because a missing line reads as a mistake.
 
+## Try it
+
+```sh
+pnpm install
+pnpm cli examples/acampamento.json
+```
+
+Prints the per-member table, the amount to ask each person for, and a summary ready to paste
+into a group chat. `--member m03` shows one person's own breakdown, rounding included.
+
 ## Roadmap
 
 | Version | Scope                                                                                                    |
