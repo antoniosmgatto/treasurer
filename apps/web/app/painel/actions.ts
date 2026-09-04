@@ -1,6 +1,6 @@
 'use server';
 
-import { CLUB, parseBRL, settle, type Collector } from '@treasurer/core';
+import { CLUB, parseBRL, participantsFor, settle, type Collector } from '@treasurer/core';
 import {
   addMember,
   appendEntries,
@@ -66,14 +66,26 @@ export async function addExpense(_: ActionResult, form: FormData): Promise<Actio
   }
   if (amount <= 0) return { error: t.errors.badAmount };
 
+  /**
+   * D12: participants are overrides. An untouched form ticks everybody, which is the same thing
+   * as saying nothing, so it stores nothing and the roster answers for it later.
+   *
+   * The moment somebody is unticked the whole list is written down, the excluded member included
+   * at weight 0 — D1 wants that line rendered rather than missing.
+   */
+  const loaded = await loadEvent(await db(), eventId);
+  const participants = participantsFor(
+    loaded?.roster ?? [],
+    new Set(form.getAll('participant').map(String)),
+  );
+
   await recordExpense(await db(), eventId, {
     id: newId(),
     description,
     collector,
     ...(collectionKey ? { collectionKey } : {}),
     amount,
-    // D12: empty means "everyone on the roster", resolved when the event is read back.
-    participants: [],
+    participants,
   });
   revalidatePath('/painel');
   return {};

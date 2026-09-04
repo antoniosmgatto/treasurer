@@ -4,6 +4,7 @@ import {
   formatCode,
   settle,
   type Collector,
+  type Expense,
   type Member,
 } from '@treasurer/core';
 import { balancesFor, loadEvent, membersOf, openEventFor } from '@treasurer/db';
@@ -28,6 +29,15 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+function excludedFrom(expense: Expense, members: readonly Member[]): string[] {
+  return expense.participants
+    .filter((participant) => participant.weight === 0)
+    .map(
+      (participant) =>
+        members.find((member) => member.id === participant.memberId)?.name ?? participant.memberId,
+    );
+}
+
 function collectorName(collector: Collector, members: readonly Member[]): string {
   if (collector.kind === 'club') return t.event.club;
   return members.find((member) => member.id === collector.memberId)?.name ?? collector.memberId;
@@ -45,8 +55,9 @@ export default async function PanelPage() {
   const loaded = await loadEvent(connection, event.id);
   const settlement = loaded ? settle(loaded.event, loaded.members) : null;
   const balances = await balancesFor(connection, groupId);
-  const roster = loaded?.event.expenses[0]?.participants ?? [];
-  const rosterIds = new Set(roster.map((entry) => entry.memberId));
+  const roster = loaded?.roster ?? [];
+  // Weight 0 is on the roster but excluded from a bill; only the ones who came are pre-ticked.
+  const rosterIds = new Set(roster.filter((entry) => entry.weight > 0).map((e) => e.memberId));
   const spending = members.filter((member) => !member.retiredAt);
 
   return (
@@ -113,6 +124,12 @@ export default async function PanelPage() {
                   {' · '}
                   {collectorName(expense.collector, members)}
                 </span>
+                {/* D1: an exclusion is stated on the bill, not left for somebody to notice. */}
+                {excludedFrom(expense, members).length > 0 && (
+                  <span className="text-muted-foreground block text-xs">
+                    {t.event.without} {excludedFrom(expense, members).join(', ')}
+                  </span>
+                )}
               </span>
               <span className="flex items-center gap-3">
                 <span className="tabular-nums">{formatBRL(expense.amount)}</span>
@@ -159,6 +176,28 @@ export default async function PanelPage() {
               </select>
             </div>
           </div>
+          {rosterIds.size > 0 && (
+            <div className="flex flex-col gap-2">
+              <Label>{t.event.whoIsIn}</Label>
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {members
+                  .filter((member) => rosterIds.has(member.id))
+                  .map((member) => (
+                    <label key={member.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        name="participant"
+                        value={member.id}
+                        defaultChecked
+                        className="size-4"
+                      />
+                      {member.name}
+                    </label>
+                  ))}
+              </div>
+              <p className="text-muted-foreground text-xs">{t.event.whoIsInHint}</p>
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="collectionKey">{t.event.collectionKey}</Label>
             <Input id="collectionKey" name="collectionKey" placeholder="41 99999-9999" />

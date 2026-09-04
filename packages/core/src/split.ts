@@ -40,3 +40,23 @@ export function splitByWeight(amount: Cents, participants: readonly Participant[
 
   return { shares, rounding: cents(allocated - amount) };
 }
+
+/**
+ * Turns "these are the ones in this bill" into the participant list to store, following D12:
+ * participants are overrides, and the roster answers when there is no override.
+ *
+ * Everybody in means nothing to store — an untouched form says the same as the roster, and
+ * writing it down would freeze a copy that stops tracking the roster it was taken from. One
+ * person out means the whole list is written down, that person included at weight 0, because D1
+ * wants their line rendered at zero rather than missing.
+ */
+export function participantsFor(
+  roster: readonly Participant[],
+  inBill: ReadonlySet<MemberId>,
+): Participant[] {
+  if (roster.every((entry) => inBill.has(entry.memberId))) return [];
+  return roster.map((entry) => ({
+    memberId: entry.memberId,
+    weight: inBill.has(entry.memberId) ? entry.weight || 1 : 0,
+  }));
+}
