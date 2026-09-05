@@ -107,6 +107,14 @@ export const t = {
     retired: 'Saiu do clube',
   },
 
+  /** D34: says nothing about the club or what is behind it. */
+  gate: {
+    title: 'Acesso restrito',
+    passphrase: 'Senha',
+    enter: 'Entrar',
+    wrong: 'Senha incorreta.',
+  },
+
   errors: {
     badAmount: 'Valor inválido. Escreva assim: 158,73',
     required: 'Preencha este campo',

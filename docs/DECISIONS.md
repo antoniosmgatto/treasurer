@@ -404,3 +404,57 @@ D31 exists to prevent. It is replaced by a lookup of the named event, scoped to 
 moves to `/painel/roles/<id>`, which already existed as the read-only view of a closed one. One
 rolê is one URL, which is what lets two be open in two tabs — and closing stops being the thing
 that lets the next one exist. It is now only what stops the corrections.
+
+## D34 — A passphrase in front of the panel, on production only. D9 and D14 are amended
+
+The app is deployed at an address anybody can reach, and until this record the only thing between
+a stranger and the club's ledger was their not having guessed `/painel`.
+
+The platform cannot fix it here. On the plan this runs on, the only protection scope available
+covers preview deployments and explicitly leaves the production domain public — the inverse of what
+is wanted. Protecting production means moving up a plan and paying a monthly add-on that costs more
+than the club spends on fuel for a rolê, and it would be the wrong instrument anyway: the whole
+mechanism is that fifteen people who installed nothing open `/r/<token>` from a group chat, and a
+gate at the edge cannot tell them from anybody else.
+
+So the gate is in the app. One shared phrase in `PANEL_PASSPHRASE`, typed once per browser, holding
+`/painel/*` and `/acesso/*`. `/` and `/r/<token>` stay open, because a rolê's link has to work in
+the hands of somebody who was never told a passphrase — that is the point of it (D30, D32).
+
+**The variable's presence is the switch, and nothing else is.** Absent means there is no gate at
+all, which is what keeps local development unchanged: a database of test rolês in `.data/` is not
+worth a login screen between you and every reload. `NODE_ENV` deliberately does not decide it,
+because a local `next build && next start` is production by that measure and gating it would be a
+surprise — though `NODE_ENV` does still decide whether the cookie is `secure`, which is the one
+thing it is actually a good proxy for. The consequence to know about: setting the variable under
+`next start` over plain http gives a `secure` cookie the browser drops, and `/entrar` loops.
+
+**The check lives with the session, not in front of the router.** A proxy matching `/painel/*`
+would catch today's server actions, because every action in this app happens to be imported by a
+page under that prefix and an action posts to the URL of the page that rendered its form. Nothing
+enforces that, nothing types it and nothing tests it, and the first action rendered on a member's
+page would walk straight past the matcher. `requireGroup` already stands in front of every panel
+page and every action, so the gate goes inside it and is covered by construction. `/acesso/<token>`
+checks by hand: it is a route handler with no layout above it, and it never calls `requireGroup`
+because it is the thing that produces the group — so the one path that hands out write access would
+otherwise have been the one path around the passphrase.
+
+**What it does to D9 and D14.** The write link still selects a group and is still spent for a
+cookie on first visit, so both records still describe how a treasurer arrives. What they stop
+describing is the boundary. On a deployment the link itself is behind the passphrase, so holding it
+alone gets nobody anything — the credential moved, and D9's sentence about the link being the
+credential is now true only of which club, not of whether.
+
+**What the gate is worth, stated plainly.** A shared phrase with no rate limit, no lockout and no
+log. A script guesses as fast as the function answers, so the strength is entirely in the phrase:
+four random words is fine for years, the club's name and the year is fine for about a minute. What
+is bought is real but small — the cookie holds a digest rather than the phrase, so rotating the
+variable logs everybody out for free and a stolen cookie is not a secret the club has reused
+elsewhere; both comparisons are constant-time and length-blind, which costs nothing and removes the
+two cheapest mistakes; and the phrase never reaches a URL, history or a screenshot, which is D14's
+reasoning applied again.
+
+It is obscurity plus a shared secret, not authentication. That is proportionate to what is behind
+it — first names, the price of a churrasco, and a ledger that only ever grows (D3), so the worst a
+stranger can do is add something everybody can see, with payment keys deliberately absent (D8). It
+is a placeholder for accounts and not a substitute for them.
