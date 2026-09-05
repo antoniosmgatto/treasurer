@@ -65,6 +65,8 @@ export const t = {
     tapYourName: 'Toque no seu nome',
     link: 'Link do rolê',
     copyLink: 'Copiar link do rolê',
+    share: 'Compartilhar no zap',
+    people: 'pessoas',
   },
 
   member: {

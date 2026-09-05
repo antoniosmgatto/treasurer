@@ -11,6 +11,7 @@ import { balancesFor, eventsOf, loadEvent, membersOf, openEventFor } from '@trea
 import Link from 'next/link';
 import { ActionForm } from '@/components/action-form';
 import { CopySummary } from '@/components/copy-summary';
+import { ShareEvent } from '@/components/share-event';
 import { SubmitButton } from '@/components/submit-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -353,7 +354,7 @@ export default async function PanelPage() {
               {/* One link for the whole rolê: what actually gets pasted in the group (Q12). */}
               <div className="flex flex-col gap-1 border-t pt-4">
                 <h3 className="text-muted-foreground text-xs">{t.share.link}</h3>
-                <CopySummary text={`/r/${event.shareToken}`} label={t.share.copyLink} />
+                <ShareEvent token={event.shareToken} name={event.name} date={event.date} />
               </div>
 
               {/* Closing is what lets the next rolê exist (D4). It closes whatever the state of
