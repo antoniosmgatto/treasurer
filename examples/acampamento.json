@@ -49,6 +49,31 @@
       "id": "m10",
       "name": "Membro 10",
       "code": 10
+    },
+    {
+      "id": "m11",
+      "name": "Membro 11",
+      "code": 11
+    },
+    {
+      "id": "m12",
+      "name": "Membro 12",
+      "code": 12
+    },
+    {
+      "id": "m13",
+      "name": "Membro 13",
+      "code": 13
+    },
+    {
+      "id": "m14",
+      "name": "Membro 14",
+      "code": 14
+    },
+    {
+      "id": "m15",
+      "name": "Membro 15",
+      "code": 15
     }
   ],
   "event": {
@@ -60,27 +85,150 @@
       {
         "id": "carne",
         "description": "Carne",
-        "amount": "155,00",
-        "participants": ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10"],
         "collectedBy": "m01",
-        "collectionKey": "41999000001",
-        "receiptTotal": "161,47"
+        "collectionKey": "41 90000-0001",
+        "amount": "155,00",
+        "receiptTotal": "161,47",
+        "participants": [
+          {
+            "memberId": "m01",
+            "weight": 1
+          },
+          {
+            "memberId": "m02",
+            "weight": 1
+          },
+          {
+            "memberId": "m03",
+            "weight": 1
+          },
+          {
+            "memberId": "m04",
+            "weight": 1
+          },
+          {
+            "memberId": "m05",
+            "weight": 1
+          },
+          {
+            "memberId": "m06",
+            "weight": 1
+          },
+          {
+            "memberId": "m07",
+            "weight": 1
+          },
+          {
+            "memberId": "m08",
+            "weight": 1
+          },
+          {
+            "memberId": "m09",
+            "weight": 1
+          },
+          {
+            "memberId": "m10",
+            "weight": 1
+          }
+        ]
       },
       {
-        "id": "mercado",
-        "description": "Mercado (janta)",
-        "amount": "158,73",
-        "participants": ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10"],
+        "id": "janta",
+        "description": "Janta (anfitrião)",
         "collectedBy": "m02",
-        "collectionKey": "41999000002"
+        "collectionKey": "41 90000-0002",
+        "amount": "158,73",
+        "participants": [
+          {
+            "memberId": "m01",
+            "weight": 1
+          },
+          {
+            "memberId": "m02",
+            "weight": 1
+          },
+          {
+            "memberId": "m03",
+            "weight": 1
+          },
+          {
+            "memberId": "m04",
+            "weight": 1
+          },
+          {
+            "memberId": "m05",
+            "weight": 1
+          },
+          {
+            "memberId": "m06",
+            "weight": 1
+          },
+          {
+            "memberId": "m07",
+            "weight": 1
+          },
+          {
+            "memberId": "m08",
+            "weight": 1
+          },
+          {
+            "memberId": "m09",
+            "weight": 1
+          },
+          {
+            "memberId": "m10",
+            "weight": 1
+          }
+        ]
       },
       {
-        "id": "compras",
-        "description": "Compras",
-        "amount": "161,47",
-        "participants": ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10"],
+        "id": "clube",
+        "description": "Compras do clube (com cerveja)",
         "collectedBy": "club",
-        "collectionKey": "41999000099"
+        "collectionKey": "clube@exemplo.com.br",
+        "amount": "648,50",
+        "participants": [
+          {
+            "memberId": "m01",
+            "weight": 1
+          },
+          {
+            "memberId": "m02",
+            "weight": 1
+          },
+          {
+            "memberId": "m03",
+            "weight": 0
+          },
+          {
+            "memberId": "m04",
+            "weight": 1
+          },
+          {
+            "memberId": "m05",
+            "weight": 1
+          },
+          {
+            "memberId": "m06",
+            "weight": 1
+          },
+          {
+            "memberId": "m07",
+            "weight": 1
+          },
+          {
+            "memberId": "m08",
+            "weight": 1
+          },
+          {
+            "memberId": "m09",
+            "weight": 1
+          },
+          {
+            "memberId": "m10",
+            "weight": 1
+          }
+        ]
       }
     ]
   }
