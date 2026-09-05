@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
    * unbounded fan-out is what turns a build problem into an unresponsive machine.
    */
   experimental: { cpus: 2 },
+
+  /**
+   * `.next` everywhere except the end-to-end run, which sets this to a directory of its own. Next
+   * refuses a second dev server for the same build directory, so without this `pnpm e2e` would
+   * fail whenever `pnpm dev` happened to be open — which is most of the time.
+   */
+  distDir: process.env['NEXT_DIST_DIR'] ?? '.next',
 };
 
 export default nextConfig;

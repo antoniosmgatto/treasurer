@@ -9,6 +9,8 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     '.next/**',
+    // The end-to-end run builds into a directory of its own, and it is just as generated.
+    '.next-e2e/**',
     'out/**',
     'build/**',
     'next-env.d.ts',

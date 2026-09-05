@@ -10,6 +10,8 @@
     "packages/*/src/**/*.ts",
     "packages/*/test/**/*.ts",
     "vitest.config.ts",
-    "packages/db/drizzle.config.ts"
+    "packages/db/drizzle.config.ts",
+    "e2e/**/*.ts",
+    "playwright.config.ts"
   ]
 }
