@@ -43,6 +43,13 @@
       "when": 1788615033213,
       "tag": "0005_event_share_token",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788616262619,
+      "tag": "0006_event_description",
+      "breakpoints": true
     }
   ]
 }

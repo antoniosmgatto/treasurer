@@ -86,6 +86,12 @@ export const events = pgTable(
       .notNull()
       .references(() => groups.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
+    /**
+     * Where it was, what to bring, whatever the buyers want to add. It is what makes the shared
+     * link worth opening before any bill exists (D31) — and it never reaches the link preview,
+     * because free text can name the club or an amount (D30).
+     */
+    description: text('description'),
     /** The day of the occasion, not of data entry. */
     date: date('date').notNull(),
     status: eventStatus('status').notNull().default('open'),

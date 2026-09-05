@@ -62,7 +62,13 @@ export default async function EventPage({ params }: { params: Promise<{ token: s
     return (
       <main className="mx-auto flex w-full max-w-md flex-col gap-3 p-5">
         <h1 className="text-2xl font-semibold tracking-tight">{found.event.name}</h1>
+        <p className="text-muted-foreground text-sm">{found.event.date}</p>
+        {/* D31: the description is why this page is worth opening before the bills exist. */}
+        {found.event.description && (
+          <p className="whitespace-pre-line">{found.event.description}</p>
+        )}
         <p className="text-muted-foreground">{t.member.notReady}</p>
+        <ShareEvent token={token} name={found.event.name} date={found.event.date} />
       </main>
     );
   }
@@ -78,6 +84,12 @@ export default async function EventPage({ params }: { params: Promise<{ token: s
         </div>
         <span className="tabular-nums">{formatBRL(settlement.total)}</span>
       </header>
+
+      {/* D30 keeps this off the link preview: free text can name the club or an amount, and
+          the card is read by people who never tapped through. */}
+      {found.event.description && (
+        <p className="text-sm whitespace-pre-line">{found.event.description}</p>
+      )}
 
       <ShareEvent token={token} name={found.event.name} date={found.event.date} />
 

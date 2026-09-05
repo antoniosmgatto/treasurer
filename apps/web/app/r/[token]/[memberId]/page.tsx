@@ -1,5 +1,5 @@
 import { formatBRL, settle } from '@treasurer/core';
-import { eventByShareToken, loadEvent } from '@treasurer/db';
+import { eventByShareToken, loadEvent, positionsIn } from '@treasurer/db';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
@@ -26,6 +26,15 @@ export default async function MemberOnEventPage({
   const mine = settlement.members.find((member) => member.memberId === memberId);
   if (!mine) notFound();
 
+  /**
+   * D31: they paid, and then a bill was corrected under them. They are the last person who should
+   * find that out from somebody else — the amount above is already the new one, so the page has
+   * to say why it no longer matches the transfer they made.
+   */
+  const position = (await positionsIn(connection, found.event.id)).get(memberId);
+  const changed =
+    position !== undefined && position.moved !== 0 && position.charged + position.moved !== 0;
+
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-6 p-5">
       <header>
@@ -43,6 +52,12 @@ export default async function MemberOnEventPage({
           {formatBRL(mine.owed > 0 ? mine.owed : mine.receiving)}
         </p>
       </div>
+
+      {changed && (
+        <p className="border-destructive text-destructive rounded-lg border px-3 py-2 text-sm">
+          {t.member.changed}
+        </p>
+      )}
 
       <section className="flex flex-col gap-3">
         <ul className="flex flex-col gap-2 text-sm">

@@ -38,6 +38,15 @@ export const t = {
     open: 'Em aberto',
     backToPanel: 'Voltar',
     saveRoster: 'Salvar quem foi',
+    about: 'Sobre o rolê',
+    aboutField: 'Descrição',
+    aboutHint: 'Onde é, o que levar, o que mais o pessoal precisa saber. Aparece no link do rolê.',
+    saveAbout: 'Salvar',
+    edit: 'Editar',
+    saveExpense: 'Salvar despesa',
+    cancel: 'Cancelar',
+    correctionHint:
+      'Enquanto o rolê está aberto dá pra corrigir despesa e quem foi. Quem já pagou entra em conferência.',
     addGuest: 'Adicionar convidado',
     guestName: 'Nome do convidado',
     guest: 'convidado',
@@ -59,6 +68,11 @@ export const t = {
     reimbursed: 'Devolvido',
     copy: 'Copiar resumo pro zap',
     copied: 'Copiado!',
+    needsReview: 'Conferir',
+    needsReviewHint:
+      'O valor mudou depois que essa pessoa pagou. Confira a diferença antes de dar como quitado.',
+    short: 'falta entrar',
+    toReturn: 'a devolver',
   },
 
   share: {
@@ -81,6 +95,7 @@ export const t = {
     broughtOwn: 'você trouxe a sua',
     notReady: 'O rateio ainda está sendo fechado. Volte daqui a pouco.',
     noEvent: 'Nenhum rolê aberto no momento.',
+    changed: 'O valor mudou depois do seu pagamento. O clube vai conferir.',
   },
 
   admin: {
@@ -97,5 +112,6 @@ export const t = {
     badAmount: 'Valor inválido. Escreva assim: 158,73',
     required: 'Preencha este campo',
     noAccess: 'Link inválido ou expirado.',
+    closed: 'Esse rolê já foi encerrado. Não dá mais pra mexer nas despesas.',
   },
 } as const;

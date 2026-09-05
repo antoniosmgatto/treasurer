@@ -41,6 +41,9 @@ export default async function PastEventPage({ params }: { params: Promise<{ even
         </Link>
       </header>
 
+      {/* Whatever the rolê said about itself, kept with it (D31). */}
+      {mine.description && <p className="text-sm whitespace-pre-line">{mine.description}</p>}
+
       <section className="flex flex-col gap-2">
         <h2 className="font-medium">{t.event.expenses}</h2>
         {loaded.event.expenses.map((expense) => (
