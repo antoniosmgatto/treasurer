@@ -14,7 +14,6 @@ import {
   insertMembers,
   linksFor,
   loadEvent,
-  memberByReadToken,
   openEvent,
   openEventFor,
   publishCharges,
@@ -175,24 +174,6 @@ describe('an event with no roster saved', () => {
   });
 });
 
-describe('member read links (D11)', () => {
-  it('resolves a member from their own token', async () => {
-    const [row] = await db.select().from(members).where(eq(members.id, 'm02'));
-    const found = await memberByReadToken(db, row!.readToken);
-    expect(found?.member.name).toBe('Membro 02');
-    expect(found?.groupId).toBe(GROUP);
-  });
-
-  it('gives every member a distinct token', async () => {
-    const rows = await db.select().from(members);
-    expect(new Set(rows.map((row) => row.readToken)).size).toBe(rows.length);
-  });
-
-  it('returns null for an unknown token', async () => {
-    expect(await memberByReadToken(db, 'not-a-token')).toBeNull();
-  });
-});
-
 describe('publishing charges (D15)', () => {
   it('starts unpublished and can be published once the treasurer is done', async () => {
     const before = await openEventFor(db, GROUP);
@@ -326,12 +307,17 @@ describe('reimbursing whoever fronted the money', () => {
   });
 });
 
-describe('reissuing the links', () => {
+describe('reissuing the treasurer link', () => {
   it('reprints what seed printed once', async () => {
     const [only] = await allGroups(db);
     const found = await linksFor(db, only!.id);
 
-    expect(found?.links.map((link) => link.name)).toEqual(['Membro 01', 'Membro 02', 'Membro 03']);
+    // D32: the roster comes back, but no link per person — there is no such thing any more.
+    expect(found?.members.map((member) => member.name)).toEqual([
+      'Membro 01',
+      'Membro 02',
+      'Membro 03',
+    ]);
     expect(found?.writeToken).toHaveLength(22);
   });
 

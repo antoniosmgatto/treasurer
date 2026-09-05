@@ -173,23 +173,9 @@ export async function insertMembers(
       name: member.name,
       code: member.code ?? null,
       guestOfEventId: member.guestOf ?? null,
-      readToken: newToken(),
       retiredAt: member.retiredAt ? new Date(member.retiredAt) : null,
     })),
   );
-}
-
-/** Resolves a member's own read link (D11) to the member and the group's open event. */
-export async function memberByReadToken(
-  db: Db,
-  token: string,
-): Promise<{ member: Member; groupId: string } | null> {
-  const [row] = await db
-    .select()
-    .from(members)
-    .where(and(eq(members.readToken, token), isNull(members.deletedAt)))
-    .limit(1);
-  return row ? { member: toMember(row), groupId: row.groupId } : null;
 }
 
 export async function openEventFor(db: Db, groupId: string): Promise<EventRow | null> {
@@ -273,7 +259,8 @@ export async function softDeleteExpense(db: Db, groupId: string, expenseId: stri
 export interface CreatedGroup {
   groupId: string;
   writeToken: string;
-  links: { name: string; code: number; url: string }[];
+  /** The roster the CLI prints back. No link per person any more — D11 is superseded by D32. */
+  members: { name: string; code: number }[];
 }
 
 /** D18: the CLI bootstraps a club, because the admin page needs a token this call issues. */
@@ -298,9 +285,9 @@ export async function createGroup(
   return {
     groupId,
     writeToken,
-    links: created
+    members: created
       .filter((row) => row.code !== null)
-      .map((row) => ({ name: row.name, code: row.code as number, url: `/e/${row.readToken}` })),
+      .map((row) => ({ name: row.name, code: row.code as number })),
   };
 }
 
@@ -313,8 +300,8 @@ export async function allGroups(db: Db): Promise<{ id: string; name: string }[]>
 }
 
 /**
- * Reissues the links `seed` printed once. Without this the only copy of a treasurer's write token
- * is their terminal scrollback, and a lost one locks the club out of its own panel.
+ * Reissues the write link `seed` printed once. Without this the only copy of a treasurer's write
+ * token is their terminal scrollback, and a lost one locks the club out of its own panel.
  */
 export async function linksFor(db: Db, groupId: string): Promise<CreatedGroup | null> {
   const [group] = await db.select().from(groups).where(eq(groups.id, groupId)).limit(1);
@@ -328,9 +315,9 @@ export async function linksFor(db: Db, groupId: string): Promise<CreatedGroup | 
   return {
     groupId,
     writeToken: group.writeToken,
-    links: rows
+    members: rows
       .filter((row) => row.code !== null)
-      .map((row) => ({ name: row.name, code: row.code as number, url: `/e/${row.readToken}` })),
+      .map((row) => ({ name: row.name, code: row.code as number })),
   };
 }
 
@@ -382,7 +369,6 @@ export async function addGuest(
     name: input.name,
     code: null,
     guestOfEventId: input.eventId,
-    readToken: newToken(),
   });
   return id;
 }

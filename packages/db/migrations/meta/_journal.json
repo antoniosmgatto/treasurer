@@ -50,6 +50,13 @@
       "when": 1788616262619,
       "tag": "0006_event_description",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788617487462,
+      "tag": "0007_retire_member_links",
+      "breakpoints": true
     }
   ]
 }

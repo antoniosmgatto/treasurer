@@ -346,3 +346,28 @@ failure the project exists to remove, a number that quietly went wrong with nobo
 **Where the description does not go.** It is free text, so it can name the club or quote an
 amount. It stays off the link preview, which carries name, date and headcount and nothing else
 (D30).
+
+## D32 — The rolê's link replaces the member's own. D11 is superseded
+
+Every member used to hold a permanent personal link, `/e/<token>`, that landed them on their own
+amount. It is gone, along with the `member.read_token` column behind it.
+
+What replaced it is one link per rolê (D30, Q12): the group chat gets a single URL, everybody who
+opens it sees the whole table, and tapping your own name gets you what the personal link used to
+give you — with the exclusions, the payments per collector and the exact amount to transfer.
+
+D11's reasoning was that a member should not have to find their name in a list. That held while the
+list was the club's fifteen people and the link was the only way in. It stopped holding once the
+event page existed: the list is now the ten who came, the name is one tap, and the public table is
+doing work the private link could never do — it is what lets somebody notice they are the last one
+still open, which is the entire mechanism replacing the group chat.
+
+Fifteen permanent credentials to distribute, none of them revocable without reissuing the whole
+roster, bought nothing that one shareable link does not.
+
+**The column is dropped rather than left behind.** A credential nothing checks is a liability, not
+a record — D19's "never destroy" is about facts the club may want back, and a token is not one.
+Any `/e/<token>` still in somebody's messages stops resolving, which is the intended outcome.
+
+The group's own `read_token` survives for now: nothing reads it either, and it comes out with the
+rest of D9 when accounts land.
