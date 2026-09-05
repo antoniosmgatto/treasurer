@@ -143,6 +143,8 @@ export const expenses = pgTable(
      * member: a key belongs to a bill, not to a profile (D8). */
     collectionKey: text('collection_key'),
     amount: amountCents('amount_cents'),
+    /** What the nota says, when that differs from what is being collected. */
+    receiptTotalCents: integer('receipt_total_cents'),
     receiptUrl: text('receipt_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),

@@ -22,6 +22,13 @@
       "when": 1788560041497,
       "tag": "0002_collector_per_bill",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788612344817,
+      "tag": "0003_receipt_total",
+      "breakpoints": true
     }
   ]
 }

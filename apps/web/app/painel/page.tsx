@@ -132,7 +132,16 @@ export default async function PanelPage() {
                 )}
               </span>
               <span className="flex items-center gap-3">
-                <span className="tabular-nums">{formatBRL(expense.amount)}</span>
+                <span className="tabular-nums">
+                  {formatBRL(expense.amount)}
+                  {/* Both numbers are true; showing one of them makes somebody look wrong. */}
+                  {expense.receiptTotal !== undefined &&
+                    expense.receiptTotal !== expense.amount && (
+                      <span className="text-muted-foreground block text-xs">
+                        {t.event.note} {formatBRL(expense.receiptTotal)}
+                      </span>
+                    )}
+                </span>
                 <ActionForm action={removeExpense}>
                   <input type="hidden" name="expenseId" value={expense.id} />
                   <SubmitButton variant="ghost" size="sm">
@@ -154,7 +163,16 @@ export default async function PanelPage() {
             <div className="flex flex-1 flex-col gap-2">
               <Label htmlFor="amount">{t.event.amount}</Label>
               {/* D20: text, not number — a Brazilian keyboard types 158,73. */}
-              <Input id="amount" name="amount" inputMode="decimal" placeholder="158,73" required />
+              <Input id="amount" name="amount" inputMode="decimal" placeholder="155,00" required />
+            </div>
+            <div className="flex flex-1 flex-col gap-2">
+              <Label htmlFor="receiptTotal">{t.event.receiptTotal}</Label>
+              <Input
+                id="receiptTotal"
+                name="receiptTotal"
+                inputMode="decimal"
+                placeholder="161,47"
+              />
             </div>
             <div className="flex flex-1 flex-col gap-2">
               <Label htmlFor="payerId">{t.event.paidBy}</Label>

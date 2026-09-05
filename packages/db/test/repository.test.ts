@@ -155,6 +155,29 @@ describe('the database enforces the decisions, not just the code', () => {
     ).resolves.not.toThrow();
   });
 
+  it('round-trips a nota that differs from what was charged', async () => {
+    await recordExpense(db, EVENT, {
+      id: 'carne-arredondada',
+      description: 'Carne',
+      collector: { kind: 'member', memberId: 'm01' },
+      amount: 15_500 as never,
+      receiptTotal: 16_147 as never,
+      participants: everyone,
+    });
+
+    const loaded = await loadEvent(db, EVENT);
+    const stored = loaded!.event.expenses.find((expense) => expense.id === 'carne-arredondada')!;
+    expect(stored.amount).toBe(15_500);
+    expect(stored.receiptTotal).toBe(16_147);
+
+    // Only the charged amount is split.
+    const settlement = settle(loaded!.event, loaded!.members);
+    const line = settlement.members
+      .find((member) => member.memberId === 'm04')!
+      .lines.find((entry) => entry.expenseId === 'carne-arredondada')!;
+    expect(line.amount).toBe(1550);
+  });
+
   it('round-trips a bill the club paid for, which has no payer row', async () => {
     await recordExpense(db, EVENT, {
       id: 'compras-clube',

@@ -63,7 +63,8 @@
         "amount": "155,00",
         "participants": ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10"],
         "collectedBy": "m01",
-        "collectionKey": "41999000001"
+        "collectionKey": "41999000001",
+        "receiptTotal": "161,47"
       },
       {
         "id": "mercado",

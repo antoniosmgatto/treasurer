@@ -99,6 +99,9 @@ function readExpense(raw: unknown, index: number): Expense {
       readParticipant(participant, `${where}.participants[${at}]`),
     ),
   };
+  if (record['receiptTotal'] !== undefined) {
+    expense.receiptTotal = readAmount(record['receiptTotal'], `${where}.receiptTotal`);
+  }
   if (typeof record['collectionKey'] === 'string') expense.collectionKey = record['collectionKey'];
   if (typeof record['receiptUrl'] === 'string') expense.receiptUrl = record['receiptUrl'];
   return expense;

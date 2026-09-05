@@ -16,6 +16,15 @@ describe('settle — the reference event', () => {
     expect(formatBRL(settlement.total)).toBe('R$ 475,20');
   });
 
+  it('splits what was asked for, not what the nota says', () => {
+    const carne = acampamento.expenses.find((expense) => expense.id === 'carne')!;
+    expect(formatBRL(carne.receiptTotal!)).toBe('R$ 161,47');
+    expect(formatBRL(carne.amount)).toBe('R$ 155,00');
+    // Ten shares of the charged amount, and the receipt total never enters the arithmetic.
+    const line = forMember('m04').lines.find((entry) => entry.expenseId === 'carne')!;
+    expect(formatBRL(line.amount)).toBe('R$ 15,50');
+  });
+
   it('charges everyone the same share, rounded up', () => {
     // 15,50 + 15,88 + 16,15 — each bill divided by ten and rounded up to the cent.
     for (const id of ['m04', 'm05', 'm06', 'm07', 'm08', 'm09', 'm10']) {
