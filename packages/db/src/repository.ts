@@ -8,7 +8,7 @@ import {
   type Member,
   type Participant,
 } from '@treasurer/core';
-import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import { newId, newToken } from './ids.js';
 import {
@@ -196,6 +196,30 @@ export async function openEventFor(db: Db, groupId: string): Promise<EventRow | 
     .select()
     .from(events)
     .where(and(eq(events.groupId, groupId), eq(events.status, 'open'), isNull(events.deletedAt)))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * Every event a group has had, newest first. Closing one used to make it invisible: the panel and
+ * the member view both asked only for the open event, so a settled trip stopped existing for
+ * everybody who took part in it.
+ */
+export async function eventsOf(db: Db, groupId: string): Promise<EventRow[]> {
+  return db
+    .select()
+    .from(events)
+    .where(and(eq(events.groupId, groupId), isNull(events.deletedAt)))
+    .orderBy(desc(events.date), desc(events.createdAt));
+}
+
+/** The event a member should be shown when none is open: the last one they were charged for. */
+export async function lastEventFor(db: Db, groupId: string): Promise<EventRow | null> {
+  const [row] = await db
+    .select()
+    .from(events)
+    .where(and(eq(events.groupId, groupId), isNull(events.deletedAt)))
+    .orderBy(desc(events.date), desc(events.createdAt))
     .limit(1);
   return row ?? null;
 }

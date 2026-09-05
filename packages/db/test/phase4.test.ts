@@ -6,11 +6,15 @@ import {
   allGroups,
   appendEntries,
   balancesFor,
+  closeEvent,
+  eventsOf,
   groupByWriteToken,
+  lastEventFor,
   insertMembers,
   linksFor,
   loadEvent,
   memberByReadToken,
+  openEvent,
   openEventFor,
   publishCharges,
   recordExpense,
@@ -341,5 +345,38 @@ describe('reissuing the links', () => {
   it('returns null for a group that does not exist', async () => {
     expect(await linksFor(db, 'no-such-group')).toBeNull();
     expect(await rotateWriteToken(db, 'no-such-group')).toBeNull();
+  });
+});
+
+describe('closing a rolê', () => {
+  it('lets the next one exist, and keeps the last one readable', async () => {
+    await recordExpense(db, EVENT, {
+      id: 'carne',
+      description: 'Carne',
+      collector: { kind: 'member', memberId: 'm01' },
+      amount: 9000 as never,
+      participants: [],
+    });
+
+    // D4: the database allows one open event per group, so this is the blocker it removes.
+    await expect(
+      openEvent(db, { groupId: GROUP, name: 'Churrasco', date: '2026-09-05' }),
+    ).rejects.toThrow();
+
+    await closeEvent(db, EVENT);
+    const next = await openEvent(db, { groupId: GROUP, name: 'Churrasco', date: '2026-09-05' });
+    expect(next).toBeTruthy();
+
+    // The closed one is still there, and still settles to the same numbers.
+    const all = await eventsOf(db, GROUP);
+    expect(all.map((entry) => entry.name)).toContain('Churrasco');
+    const closed = all.find((entry) => entry.id === EVENT)!;
+    expect(closed.status).toBe('settled');
+
+    const loaded = await loadEvent(db, EVENT);
+    expect(loaded!.event.expenses).toHaveLength(1);
+
+    // And a member who taps their link now lands on the newest event, open or not.
+    expect((await lastEventFor(db, GROUP))!.name).toBe('Churrasco');
   });
 });
