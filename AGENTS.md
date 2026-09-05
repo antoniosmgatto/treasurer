@@ -37,6 +37,13 @@ cite the ID where code encodes one — `// D12: empty means "everyone on the ros
 implement something a record covers, cite it the same way; when you change what a record says,
 update the record in the same commit.
 
+## Local versus production
+
+`.env.local` is the local database and `next dev` loads it automatically. Production credentials
+are pulled to `.env.production.pulled` — a name Next does not recognise — and sourced deliberately
+for a command that means to reach the live club (`docs/DEPLOY.md`). Never pull production over
+`.env.local`.
+
 ## Gates
 
 Run what `.github/workflows/ci.yml` runs, in its order, before pushing.

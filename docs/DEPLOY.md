@@ -65,7 +65,7 @@ Vercel now holds:
 
 ```sh
 npx vercel link
-npx vercel env pull .env.local --environment=production
+npx vercel env pull .env.production.pulled --environment=production
 ```
 
 `--environment=production` is not optional. Without it the CLI pulls the Development
@@ -73,14 +73,18 @@ environment, which will not have the database variables, and you end up with a f
 little more than `VERCEL_OIDC_TOKEN`. Check before going further:
 
 ```sh
-grep -c '^DATABASE_URL=' .env.local   # must print 1
+grep -c '^DATABASE_URL=' .env.production.pulled   # must print 1
 ```
 
-`.env.local` is gitignored. Load it into the shell once, and both this command and the seed in the
-next step will use it:
+**Not `.env.local`.** That file holds the _local_ database (README), and `next dev` loads it
+automatically — pulling production over it points your development server at the live club without
+saying so. `.env.production.pulled` is not a name Next recognises, so it only ever reaches a
+command you source it into deliberately. Both are gitignored by the `.env.*` rule.
+
+Load it into the shell once, and both this command and the seed in the next step will use it:
 
 ```sh
-set -a; source .env.local; set +a
+set -a; source .env.production.pulled; set +a
 pnpm cli migrate
 ```
 
