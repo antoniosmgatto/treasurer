@@ -1,4 +1,3 @@
-import { sql } from 'drizzle-orm';
 import {
   boolean,
   date,
@@ -91,6 +90,10 @@ export const events = pgTable(
     description: text('description'),
     /** The day of the occasion, not of data entry. */
     date: date('date').notNull(),
+    /**
+     * D33: a group may hold several open rolês. D4 allowed one, enforced by a partial unique
+     * index, so the churrasco waited on somebody remembering to close the acampamento.
+     */
     status: eventStatus('status').notNull().default('open'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     settledAt: timestamp('settled_at', { withTimezone: true }),
@@ -107,13 +110,6 @@ export const events = pgTable(
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (table) => [
-    /**
-     * D4: one open event per group. With two open, an incoming R$48,03 from member 03 is
-     * ambiguous and the identification scheme quietly stops working — so the database refuses.
-     */
-    uniqueIndex('event_one_open_per_group_idx')
-      .on(table.groupId)
-      .where(sql`${table.status} = 'open' and ${table.deletedAt} is null`),
     uniqueIndex('event_share_token_idx').on(table.shareToken),
     index('event_group_idx').on(table.groupId),
   ],

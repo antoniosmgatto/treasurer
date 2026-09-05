@@ -371,3 +371,36 @@ Any `/e/<token>` still in somebody's messages stops resolving, which is the inte
 
 The group's own `read_token` survives for now: nothing reads it either, and it comes out with the
 rest of D9 when accounts land.
+
+## D33 — Several rolês open at once. D4 is superseded
+
+D4 let a group hold exactly one open event, enforced by a partial unique index rather than by
+convention. Its reason was reconciliation: the identification code lives in the centavos and
+identifies the _member_, so an incoming R$48,03 from member 03 says who paid and not what for.
+With two rolês open, that is genuinely ambiguous.
+
+It still is. What changed is the price. A club that rides monthly has the churrasco being
+organised while the acampamento is still collecting, and D4 made the second one wait on the
+first — not on the money, on somebody remembering to press _encerrar_. The constraint defends a
+bank connection that does not exist and will not for several phases, and it charges for that
+defence in the only currency this app has, which is whether people use it.
+
+Nothing today is ambiguous, because nothing today reads a statement. Payments are marked by hand
+against a named rolê (D13) and the entry carries that `event_id`. The ambiguity arrives with the
+import, and it arrives there as a matching problem — D4's own closing line said as much and named
+oldest-charge-first as the rule. It belongs where the information to resolve it is.
+
+**What this does not change.** Balances were already per event and never per club (D31): both
+`positionsIn` and `recomputeCharges` are scoped by `event_id`, so two open rolês cannot reach into
+one another's arithmetic. What could not survive is `openEventFor` — a function whose entire
+meaning was "the open one", which would now hand an arbitrary row to a caller that believes
+otherwise. The dangerous caller was the panel's recompute, which compared that row's id against
+the event being corrected: with several open, a correction to any rolê but the first would have
+silently skipped the recompute and left somebody's charge quietly wrong, which is precisely what
+D31 exists to prevent. It is replaced by a lookup of the named event, scoped to its group.
+`lastEventFor` and `ensureOpenEvent` are deleted alongside it.
+
+**What it does to the panel.** `/painel` becomes a list of rolês and nothing else; the workspace
+moves to `/painel/roles/<id>`, which already existed as the read-only view of a closed one. One
+rolê is one URL, which is what lets two be open in two tabs — and closing stops being the thing
+that lets the next one exist. It is now only what stops the corrections.

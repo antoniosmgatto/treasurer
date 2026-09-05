@@ -8,14 +8,13 @@ import {
   balancesFor,
   closeEvent,
   eventByShareToken,
+  eventIn,
   eventsOf,
   groupByWriteToken,
-  lastEventFor,
   insertMembers,
   linksFor,
   loadEvent,
   openEvent,
-  openEventFor,
   publishCharges,
   recordExpense,
   recordPayment,
@@ -176,11 +175,11 @@ describe('an event with no roster saved', () => {
 
 describe('publishing charges (D15)', () => {
   it('starts unpublished and can be published once the treasurer is done', async () => {
-    const before = await openEventFor(db, GROUP);
+    const before = await eventIn(db, GROUP, EVENT);
     expect(before?.chargesPublishedAt).toBeNull();
 
     await publishCharges(db, EVENT);
-    const after = await openEventFor(db, GROUP);
+    const after = await eventIn(db, GROUP, EVENT);
     expect(after?.chargesPublishedAt).toBeInstanceOf(Date);
   });
 });
@@ -340,7 +339,7 @@ describe('reissuing the treasurer link', () => {
 });
 
 describe('closing a rolê', () => {
-  it('lets the next one exist, and keeps the last one readable', async () => {
+  it('stops the corrections and keeps the record readable', async () => {
     await recordExpense(db, EVENT, {
       id: 'carne',
       description: 'Carne',
@@ -348,11 +347,6 @@ describe('closing a rolê', () => {
       amount: 9000 as never,
       participants: [],
     });
-
-    // D4: the database allows one open event per group, so this is the blocker it removes.
-    await expect(
-      openEvent(db, { groupId: GROUP, name: 'Churrasco', date: '2026-09-05' }),
-    ).rejects.toThrow();
 
     await closeEvent(db, EVENT);
     const next = await openEvent(db, { groupId: GROUP, name: 'Churrasco', date: '2026-09-05' });
@@ -367,8 +361,9 @@ describe('closing a rolê', () => {
     const loaded = await loadEvent(db, EVENT);
     expect(loaded!.event.expenses).toHaveLength(1);
 
-    // And a member who taps their link now lands on the newest event, open or not.
-    expect((await lastEventFor(db, GROUP))!.name).toBe('Churrasco');
+    // Closing no longer gates the next rolê (D33), so it is only about this one: it is what
+    // stops the corrections, and it leaves the record intact.
+    expect(await eventIn(db, GROUP, EVENT)).not.toBeNull();
   });
 });
 

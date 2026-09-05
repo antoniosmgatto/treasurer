@@ -33,7 +33,9 @@ export const t = {
     settle: 'Encerrar o rolê',
     settleHint:
       'Depois disso ninguém mexe mais nas despesas. O que ficou em aberto continua em aberto.',
+    openEvents: 'Rolês abertos',
     past: 'Rolês anteriores',
+    noEvents: 'Nenhum rolê ainda. Crie o primeiro aí em cima.',
     closed: 'Encerrado',
     open: 'Em aberto',
     backToPanel: 'Voltar',
@@ -110,5 +112,6 @@ export const t = {
     required: 'Preencha este campo',
     noAccess: 'Link inválido ou expirado.',
     closed: 'Esse rolê já foi encerrado. Não dá mais pra mexer nas despesas.',
+    createFailed: 'Não deu pra criar o rolê. O banco pode estar desatualizado.',
   },
 } as const;
