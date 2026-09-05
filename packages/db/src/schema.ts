@@ -53,8 +53,13 @@ export const members = pgTable(
       .notNull()
       .references(() => groups.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    /** Two-digit identification code, 1–99. */
-    code: integer('code').notNull(),
+    /** Two-digit identification code, 1–99. Null for a guest, who takes none (D29). */
+    code: integer('code'),
+    /**
+     * Set only for a guest: the event they came to. They are chargeable there and invisible
+     * everywhere else — no roster, no link, no code.
+     */
+    guestOfEventId: text('guest_of_event_id'),
     /** Set when a member leaves. Their code retires with them and is never reissued (D7). */
     retiredAt: timestamp('retired_at', { withTimezone: true }),
     /** Set when the row was a mistake. Hidden everywhere, never removed (D19). */

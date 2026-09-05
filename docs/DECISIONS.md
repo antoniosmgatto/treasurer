@@ -283,3 +283,21 @@ against the photograph.
 The receipt total is optional, and nothing validates one against the other. Charging more than the
 nota is not automatically a mistake — a tip, or a cost the receipt never covered — and a rule that
 refuses it would be wrong more often than the mistake it catches.
+
+## D29 — A guest is a member row with no code, tied to one event
+
+Somebody's friend comes on the trip. He eats, he owes his share, and he holds nothing afterwards:
+no identification code, no place on the club's roster, no link of his own, and nobody is liable
+for him. The event link is shared with him, or somebody uploads his receipt for him.
+
+He is stored as a member row with a null `code` and a `guest_of_event_id`, rather than in a table
+of his own, because `share.member_id` and `ledger_entry.member_id` are foreign keys to `member`.
+A separate table would mean relaxing both, and every query that folds a ledger would have to learn
+about two kinds of person.
+
+Queries about the club filter guests out; the one query that loads an event lets in the guests of
+that event and no other. `nextCode` skips null codes, so a guest never spends one of the 99 (D7).
+
+The alternative was the weight-2 trick — the member who brought him carries a double share and
+settles privately. That keeps the app simpler and pushes the exact problem this project exists to
+solve back into a private conversation.

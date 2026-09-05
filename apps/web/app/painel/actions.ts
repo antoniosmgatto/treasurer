@@ -2,6 +2,7 @@
 
 import { CLUB, parseBRL, participantsFor, settle, type Collector } from '@treasurer/core';
 import {
+  addGuest,
   addMember,
   appendEntries,
   loadEvent,
@@ -43,6 +44,28 @@ export async function saveRoster(_: ActionResult, form: FormData): Promise<Actio
     eventId,
     memberIds.map((memberId) => ({ memberId, weight: 1 })),
   );
+  revalidatePath('/painel');
+  return {};
+}
+
+/**
+ * D29: a guest is a name on one event. They are charged like anybody else and hold nothing —
+ * no code, no place on the roster of the club, nothing that outlives the event.
+ */
+export async function addGuestToEvent(_: ActionResult, form: FormData): Promise<ActionResult> {
+  const groupId = await requireGroup();
+  const eventId = String(form.get('eventId'));
+  const name = String(form.get('name') ?? '').trim();
+  if (!name) return { error: t.errors.required };
+
+  const connection = await db();
+  const guestId = await addGuest(connection, { groupId, eventId, name });
+
+  // Somebody added on purpose is somebody who came: put them on the roster straight away.
+  const loaded = await loadEvent(connection, eventId);
+  const roster = loaded?.roster ?? [];
+  await setRoster(connection, eventId, [...roster, { memberId: guestId, weight: 1 }]);
+
   revalidatePath('/painel');
   return {};
 }

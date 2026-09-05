@@ -8,7 +8,7 @@ import {
   type Member,
   type Participant,
 } from '@treasurer/core';
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import { newId, newToken } from './ids.js';
 import {
@@ -29,8 +29,9 @@ function toMember(row: MemberRow): Member {
   const member: Member = {
     id: row.id,
     name: row.name,
-    code: row.code,
   };
+  if (row.code !== null) member.code = row.code;
+  if (row.guestOfEventId !== null) member.guestOf = row.guestOfEventId;
   if (row.retiredAt) member.retiredAt = row.retiredAt.toISOString();
   return member;
 }
@@ -38,6 +39,11 @@ function toMember(row: MemberRow): Member {
 /** Members still on the roster: not deleted (D19). Retired members stay, for past events. */
 function liveMembers(groupId: string) {
   return and(eq(members.groupId, groupId), isNull(members.deletedAt));
+}
+
+/** The club itself: guests belong to one event and never appear on the roster (D29). */
+function clubMembers(groupId: string) {
+  return and(liveMembers(groupId), isNull(members.guestOfEventId));
 }
 
 /**
@@ -58,7 +64,13 @@ export async function loadEvent(
   const memberRows = await db
     .select()
     .from(members)
-    .where(liveMembers(eventRow.groupId))
+    // The club, plus the guests who came to this event and nobody else's (D29).
+    .where(
+      and(
+        liveMembers(eventRow.groupId),
+        or(isNull(members.guestOfEventId), eq(members.guestOfEventId, eventId)),
+      ),
+    )
     .orderBy(asc(members.code));
 
   const expenseRows = await db
@@ -158,7 +170,8 @@ export async function insertMembers(
       id: member.id,
       groupId,
       name: member.name,
-      code: member.code,
+      code: member.code ?? null,
+      guestOfEventId: member.guestOf ?? null,
       readToken: newToken(),
       retiredAt: member.retiredAt ? new Date(member.retiredAt) : null,
     })),
@@ -260,11 +273,9 @@ export async function createGroup(
   return {
     groupId,
     writeToken,
-    links: created.map((row) => ({
-      name: row.name,
-      code: row.code,
-      url: `/e/${row.readToken}`,
-    })),
+    links: created
+      .filter((row) => row.code !== null)
+      .map((row) => ({ name: row.name, code: row.code as number, url: `/e/${row.readToken}` })),
   };
 }
 
@@ -287,12 +298,14 @@ export async function linksFor(db: Db, groupId: string): Promise<CreatedGroup | 
   const rows = await db
     .select()
     .from(members)
-    .where(liveMembers(groupId))
+    .where(clubMembers(groupId))
     .orderBy(asc(members.code));
   return {
     groupId,
     writeToken: group.writeToken,
-    links: rows.map((row) => ({ name: row.name, code: row.code, url: `/e/${row.readToken}` })),
+    links: rows
+      .filter((row) => row.code !== null)
+      .map((row) => ({ name: row.name, code: row.code as number, url: `/e/${row.readToken}` })),
   };
 }
 
@@ -323,9 +336,30 @@ export async function membersOf(db: Db, groupId: string): Promise<Member[]> {
   const rows = await db
     .select()
     .from(members)
-    .where(liveMembers(groupId))
+    .where(clubMembers(groupId))
     .orderBy(asc(members.code));
   return rows.map(toMember);
+}
+
+/**
+ * A guest: a name on one event, chargeable there, with no code, no link and no place in the club
+ * (D29). Nobody is liable for them — the event link is shared with them, or somebody uploads
+ * their receipt for them.
+ */
+export async function addGuest(
+  db: Db,
+  input: { groupId: string; eventId: string; name: string },
+): Promise<string> {
+  const id = newId();
+  await db.insert(members).values({
+    id,
+    groupId: input.groupId,
+    name: input.name,
+    code: null,
+    guestOfEventId: input.eventId,
+    readToken: newToken(),
+  });
+  return id;
 }
 
 export async function openEvent(
@@ -400,7 +434,8 @@ export async function nextCode(db: Db, groupId: string): Promise<number> {
     .select({ code: members.code })
     .from(members)
     .where(eq(members.groupId, groupId));
-  const used = new Set(rows.map((row) => row.code));
+  // Guests hold no code, so they never consume one (D29).
+  const used = new Set(rows.map((row) => row.code).filter((code) => code !== null));
   for (let code = 1; code <= 99; code++) {
     if (!used.has(code)) return code;
   }

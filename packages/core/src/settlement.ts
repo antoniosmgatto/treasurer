@@ -48,7 +48,8 @@ export interface CollectorSettlement {
 export interface MemberSettlement {
   memberId: MemberId;
   name: string;
-  code: number;
+  /** Absent for a guest, who holds no place in the club's numbering (D29). */
+  code?: number;
   /** What they must transfer, across every collector. Zero when they owe nobody. */
   owed: Cents;
   /** What comes back to them for the bills they collect. */
@@ -119,7 +120,7 @@ export function settle(event: Event, members: readonly Member[]): Settlement {
     settlements.push({
       memberId: member.id,
       name: member.name,
-      code: member.code,
+      ...(member.code === undefined ? {} : { code: member.code }),
       owed,
       receiving,
       net: cents(receiving - owed),

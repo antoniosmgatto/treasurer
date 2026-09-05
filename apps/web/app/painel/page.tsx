@@ -19,6 +19,7 @@ import { t } from '@/lib/labels';
 import { requireGroup } from '@/lib/session';
 import {
   addExpense,
+  addGuestToEvent,
   createEvent,
   markPaid,
   markReimbursed,
@@ -47,12 +48,14 @@ export default async function PanelPage() {
   const groupId = await requireGroup();
   const connection = await db();
 
-  const members = await membersOf(connection, groupId);
+  const club = await membersOf(connection, groupId);
   const event = await openEventFor(connection, groupId);
 
   if (!event) return <NewEvent />;
 
   const loaded = await loadEvent(connection, event.id);
+  // Guests belong to the open event, so they exist only in what loadEvent returns (D29).
+  const members = loaded?.members ?? club;
   const settlement = loaded ? settle(loaded.event, loaded.members) : null;
   const balances = await balancesFor(connection, groupId);
   const roster = loaded?.roster ?? [];
@@ -99,6 +102,10 @@ export default async function PanelPage() {
                   className="accent-foreground"
                 />
                 {member.name}
+                {/* A guest is on this event and nowhere else (D29). */}
+                {member.code === undefined && (
+                  <span className="text-muted-foreground text-xs">{t.event.guest}</span>
+                )}
               </label>
             ))}
           </div>
@@ -107,6 +114,17 @@ export default async function PanelPage() {
               {t.event.saveRoster}
             </SubmitButton>
           </div>
+        </ActionForm>
+
+        <ActionForm action={addGuestToEvent} className="flex items-end gap-2">
+          <input type="hidden" name="eventId" value={event.id} />
+          <div className="flex flex-1 flex-col gap-2">
+            <Label htmlFor="guestName">{t.event.guestName}</Label>
+            <Input id="guestName" name="name" placeholder="Amigo do Membro 02" required />
+          </div>
+          <SubmitButton variant="secondary" size="sm">
+            {t.event.addGuest}
+          </SubmitButton>
         </ActionForm>
       </section>
 
@@ -253,7 +271,7 @@ export default async function PanelPage() {
                   <tr key={member.memberId} className="border-t">
                     <td className="py-2">
                       <span className="text-muted-foreground tabular-nums">
-                        {formatCode(member.code)}
+                        {member.code === undefined ? '—' : formatCode(member.code)}
                       </span>{' '}
                       {member.name}
                       {/* One line per collector: the total alone does not say what to do. */}
