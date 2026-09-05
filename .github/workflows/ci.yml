@@ -24,3 +24,43 @@ jobs:
       # The app consumes the engine packages' compiled output, so they have to be built first.
       # `next build` alone would compile against whatever dist happened to be lying around.
       - run: pnpm build:web
+
+  # Its own job, not a sixth step: it downloads a browser and drives a real server, and the five
+  # checks above are the ones that have to answer in under a minute.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .tool-versions
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Keyed on the lockfile, so a Playwright upgrade fetches a matching browser rather than
+      # reusing one that no longer speaks its protocol.
+      - uses: actions/cache@v4
+        id: browser
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      # Chromium alone: one browser is what the config runs, and `--with-deps` is what makes it
+      # start on a runner with no desktop.
+      - run: pnpm exec playwright install --with-deps chromium
+        if: steps.browser.outputs.cache-hit != 'true'
+      - run: pnpm exec playwright install-deps chromium
+        if: steps.browser.outputs.cache-hit == 'true'
+
+      # No database and no credentials: the app falls back to a Postgres in a file (D21).
+      - run: pnpm e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

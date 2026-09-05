@@ -16,11 +16,16 @@ coverage/
 *.private.json
 data/
 
-# Local PGlite database for development.
+# Local PGlite database for development, and the throwaway one the e2e run rebuilds.
 .data/
+
+# Playwright's report, traces and downloaded browsers.
+test-results/
+playwright-report/
 
 # Next.js build output and generated agent guidance.
 apps/web/.next/
+apps/web/.next-e2e/
 apps/web/.playwright-mcp/
 
 # Design working files — sources and exports, kept locally.

@@ -14,6 +14,7 @@
     "typecheck": "tsc --build && tsc -p tsconfig.test.json && pnpm --filter @treasurer/web typecheck",
     "test": "tsc --build && vitest run",
     "test:watch": "tsc --build && vitest",
+    "e2e": "pnpm build && playwright test",
     "cli": "pnpm build && node packages/cli/dist/cli.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -21,6 +22,7 @@
     "dev": "pnpm --filter @treasurer/web dev"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/node": "^22.15.0",
     "prettier": "^3.6.2",
     "typescript": "^5.9.2",
