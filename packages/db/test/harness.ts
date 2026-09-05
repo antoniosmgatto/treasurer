@@ -8,7 +8,7 @@ const MIGRATIONS = fileURLToPath(new URL('../migrations', import.meta.url));
 
 /**
  * Real Postgres, in-process. No container, no connection string, no shared state between tests —
- * and the same partial unique indexes that production will enforce.
+ * and the same indexes and constraints production enforces.
  */
 export async function freshDatabase(): Promise<Db> {
   const client = new PGlite();

@@ -8,11 +8,13 @@ import {
   balancesFor,
   closeEvent,
   describeEvent,
+  eventsOf,
   insertMembers,
   linksFor,
   loadEvent,
   membersOf,
   nextCode,
+  openEvent,
   positionsIn,
   recomputeCharges,
   recordExpense,
@@ -142,30 +144,18 @@ async function violation(write: () => Promise<unknown>): Promise<string> {
 }
 
 describe('the database enforces the decisions, not just the code', () => {
-  it('refuses a second open event in the same group (D4)', async () => {
-    const detail = await violation(() =>
-      db.insert(events).values({
-        id: 'churrasco',
-        groupId: GROUP,
-        name: 'Churrasco',
-        date: '2026-09-12',
-        shareToken: newToken(),
-      }),
-    );
-    expect(detail).toContain('event_one_open_per_group_idx');
+  it('lets a group hold several open events at once (D33)', async () => {
+    await openEvent(db, { groupId: GROUP, name: 'Churrasco', date: '2026-09-12' });
+
+    const open = (await eventsOf(db, GROUP)).filter((event) => event.status === 'open');
+    expect(open.map((event) => event.name).sort()).toEqual(['Acampamento', 'Churrasco']);
   });
 
-  it('allows a new event once the previous one is settled', async () => {
+  it('still allows a new event once the previous one is settled', async () => {
     await closeEvent(db, EVENT);
     await expect(
-      db.insert(events).values({
-        id: 'churrasco',
-        groupId: GROUP,
-        name: 'Churrasco',
-        date: '2026-09-12',
-        shareToken: newToken(),
-      }),
-    ).resolves.not.toThrow();
+      openEvent(db, { groupId: GROUP, name: 'Churrasco', date: '2026-09-12' }),
+    ).resolves.toBeTruthy();
   });
 
   it('keeps a guest on their event and out of the club', async () => {
@@ -467,5 +457,75 @@ describe('corrections while the event is open (D31)', () => {
     await describeEvent(db, EVENT, { name: 'Outro nome', date: '2026-01-01', description: null });
     const [after] = await db.select().from(events).where(eq(events.id, EVENT));
     expect(after!.name).toBe('Acampamento na serra');
+  });
+});
+
+/**
+ * D33 removed the constraint that made this impossible, and the arithmetic has to survive it: a
+ * club with the churrasco and the acampamento both open is the whole point of the change, and two
+ * events sharing a balance is the way it would go wrong.
+ */
+describe('two rolês open at the same time (D33)', () => {
+  const SECOND = 'churrasco';
+
+  beforeEach(async () => {
+    await db.insert(events).values({
+      id: SECOND,
+      groupId: GROUP,
+      name: 'Churrasco',
+      date: '2026-09-12',
+      shareToken: newToken(),
+    });
+
+    await setRoster(db, EVENT, everyone);
+    await setRoster(db, SECOND, everyone);
+
+    await recordExpense(db, EVENT, {
+      id: 'carne',
+      description: 'Carne',
+      collector: { kind: 'member', memberId: 'm01' },
+      amount: 15_000 as never,
+      participants: [],
+    });
+    await recordExpense(db, SECOND, {
+      id: 'cerveja',
+      description: 'Cerveja',
+      collector: { kind: 'member', memberId: 'm02' },
+      amount: 20_000 as never,
+      participants: [],
+    });
+  });
+
+  it('keeps each rolê to its own bills', async () => {
+    const first = await loadEvent(db, EVENT);
+    const second = await loadEvent(db, SECOND);
+
+    expect(first!.event.expenses.map((expense) => expense.description)).toEqual(['Carne']);
+    expect(second!.event.expenses.map((expense) => expense.description)).toEqual(['Cerveja']);
+    expect(settle(first!.event, first!.members).total).toBe(15_000);
+    expect(settle(second!.event, second!.members).total).toBe(20_000);
+  });
+
+  it('records and corrects charges without touching the other rolê', async () => {
+    const loaded = await loadEvent(db, SECOND);
+    await appendEntries(db, GROUP, settle(loaded!.event, loaded!.members).entries);
+
+    // Publishing one leaves the other with nothing recorded against it at all.
+    expect((await positionsIn(db, SECOND)).get('m05')!.charged).toBe(-2000);
+    expect((await positionsIn(db, EVENT)).size).toBe(0);
+
+    // And a correction to the published one is appended against that event, not the group.
+    await updateExpense(db, SECOND, {
+      id: 'cerveja',
+      description: 'Cerveja',
+      collector: { kind: 'member', memberId: 'm02' },
+      amount: 10_000 as never,
+      participants: [],
+    });
+    const corrected = await loadEvent(db, SECOND);
+    await recomputeCharges(db, GROUP, SECOND, settle(corrected!.event, corrected!.members).entries);
+
+    expect((await positionsIn(db, SECOND)).get('m05')!.charged).toBe(-1000);
+    expect((await positionsIn(db, EVENT)).size).toBe(0);
   });
 });

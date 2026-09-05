@@ -178,11 +178,15 @@ export async function insertMembers(
   );
 }
 
-export async function openEventFor(db: Db, groupId: string): Promise<EventRow | null> {
+/**
+ * One event, always named and always scoped to the group holding it: an event id is not a
+ * credential (D9), and since D33 there is no such thing as "the open one" to ask for instead.
+ */
+export async function eventIn(db: Db, groupId: string, eventId: string): Promise<EventRow | null> {
   const [row] = await db
     .select()
     .from(events)
-    .where(and(eq(events.groupId, groupId), eq(events.status, 'open'), isNull(events.deletedAt)))
+    .where(and(eq(events.id, eventId), eq(events.groupId, groupId), isNull(events.deletedAt)))
     .limit(1);
   return row ?? null;
 }
@@ -198,17 +202,6 @@ export async function eventsOf(db: Db, groupId: string): Promise<EventRow[]> {
     .from(events)
     .where(and(eq(events.groupId, groupId), isNull(events.deletedAt)))
     .orderBy(desc(events.date), desc(events.createdAt));
-}
-
-/** The event a member should be shown when none is open: the last one they were charged for. */
-export async function lastEventFor(db: Db, groupId: string): Promise<EventRow | null> {
-  const [row] = await db
-    .select()
-    .from(events)
-    .where(and(eq(events.groupId, groupId), isNull(events.deletedAt)))
-    .orderBy(desc(events.date), desc(events.createdAt))
-    .limit(1);
-  return row ?? null;
 }
 
 /** D15: until this is set, members are shown no amount at all. */
@@ -649,6 +642,13 @@ export async function appendEntries(
   );
 }
 
+/**
+ * Every ledger entry a member has in a group, folded into one number.
+ *
+ * Nothing in the app reads this, and since D33 it is worth saying why before anything does: it is
+ * group-scoped, so with several rolês open it adds two trips into a balance that names neither.
+ * The panel wants `positionsIn`, which answers per event (D31).
+ */
 export async function balancesFor(db: Db, groupId: string): Promise<Map<string, Cents>> {
   const rows = await db
     .select({ memberId: ledgerEntries.memberId, amount: ledgerEntries.amount })
