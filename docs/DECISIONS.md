@@ -316,3 +316,33 @@ conclusions from. Anybody who taps through gets everything immediately, which is
 gate is holding the link, not the preview.
 
 Search engines are turned away from the same pages for the same reason.
+
+## D31 — Corrections are allowed while the event is open, and never after
+
+One rule covers the bills and the roster both: while a rolê is open, everything about it can be
+fixed — the amount on a bill, who collected it, who was in on it, who came at all, and what the
+event says about itself. Encerrar the rolê is the single freeze point.
+
+Two freeze points would be harder to explain than one, and freezing on the first confirmed payment
+makes the app worse than the group chat it replaces. Receipts get read wrong; a buyer remembers a
+number two days late; somebody on the roster did not come; a guy turns up unannounced. All of that
+happened on the trip this was built for.
+
+**What a correction does to the ledger.** Nothing is edited — D3 holds. Correcting a published
+event appends one `adjustment` per member for the difference between what the ledger recorded and
+what the event now costs them. A correction that changes nobody's share appends nothing, which is
+what makes it safe to run after every edit.
+
+**What it does to somebody who already paid.** Their payment is not wrong; the charge moved
+underneath it. They are flagged **conferir** with the gap named and its direction stated — money
+still to come in, or money the club is holding that is not its own. A fronter who was
+under-reimbursed and a debtor who overpaid are the same fact, so the flag reads off the balance
+rather than off the person's role. The member's own page says the same thing: they should not hear
+it from somebody else first.
+
+The alternative — recording the payment as settled and letting the balance drift — is exactly the
+failure the project exists to remove, a number that quietly went wrong with nobody told.
+
+**Where the description does not go.** It is free text, so it can name the club or quote an
+amount. It stays off the link preview, which carries name, date and headcount and nothing else
+(D30).

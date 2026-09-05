@@ -1,22 +1,32 @@
 'use server';
 
-import { CLUB, parseBRL, participantsFor, settle, type Collector } from '@treasurer/core';
+import {
+  CLUB,
+  parseBRL,
+  participantsFor,
+  settle,
+  type Collector,
+  type Expense,
+} from '@treasurer/core';
 import {
   addGuest,
   addMember,
   closeEvent,
   appendEntries,
+  describeEvent,
   loadEvent,
   newId,
   openEvent,
   openEventFor,
   publishCharges,
+  recomputeCharges,
   recordExpense,
   recordPayment,
   recordReimbursement,
   retireMember,
   setRoster,
   softDeleteExpense,
+  updateExpense,
 } from '@treasurer/db';
 import { revalidatePath } from 'next/cache';
 import type { ActionResult } from '@/lib/action-result';
@@ -35,8 +45,47 @@ export async function createEvent(_: ActionResult, form: FormData): Promise<Acti
   return {};
 }
 
-export async function saveRoster(_: ActionResult, form: FormData): Promise<ActionResult> {
+/**
+ * D31: while the event is open, what it is called and what it says about itself are both
+ * correctable. The description is the part somebody reads before any bill exists.
+ */
+export async function describe(_: ActionResult, form: FormData): Promise<ActionResult> {
   await requireGroup();
+  const name = String(form.get('name') ?? '').trim();
+  if (!name) return { error: t.errors.required };
+
+  const date = String(form.get('date') ?? '').trim();
+  if (!date) return { error: t.errors.required };
+
+  const description = String(form.get('description') ?? '').trim();
+  await describeEvent(await db(), String(form.get('eventId')), {
+    name,
+    date,
+    description: description || null,
+  });
+  revalidatePath('/painel');
+  return {};
+}
+
+/**
+ * D31: a correction after the rateio was closed has to reach the ledger, or the panel goes on
+ * showing the charge somebody already paid next to a bill that no longer says that. Before
+ * publishing there is nothing recorded to correct, and appending here would publish twice.
+ */
+async function recompute(groupId: string, eventId: string): Promise<void> {
+  const connection = await db();
+  const event = await openEventFor(connection, groupId);
+  if (event?.id !== eventId || !event.chargesPublishedAt) return;
+
+  const loaded = await loadEvent(connection, eventId);
+  if (!loaded) return;
+
+  const settlement = settle(loaded.event, loaded.members);
+  await recomputeCharges(connection, groupId, eventId, settlement.entries);
+}
+
+export async function saveRoster(_: ActionResult, form: FormData): Promise<ActionResult> {
+  const groupId = await requireGroup();
   const eventId = String(form.get('eventId'));
   const memberIds = form.getAll('memberId').map(String);
 
@@ -45,6 +94,8 @@ export async function saveRoster(_: ActionResult, form: FormData): Promise<Actio
     eventId,
     memberIds.map((memberId) => ({ memberId, weight: 1 })),
   );
+  // Somebody who was on the roster did not come, or turned up unannounced: every share moves.
+  await recompute(groupId, eventId);
   revalidatePath('/painel');
   return {};
 }
@@ -67,13 +118,22 @@ export async function addGuestToEvent(_: ActionResult, form: FormData): Promise<
   const roster = loaded?.roster ?? [];
   await setRoster(connection, eventId, [...roster, { memberId: guestId, weight: 1 }]);
 
+  // A guy turns up unannounced, after the rateio was closed. Everybody's share drops (D31).
+  await recompute(groupId, eventId);
   revalidatePath('/painel');
   return {};
 }
 
-export async function addExpense(_: ActionResult, form: FormData): Promise<ActionResult> {
-  await requireGroup();
-  const eventId = String(form.get('eventId'));
+/**
+ * Everything a bill is, read off a form. Adding one and correcting one ask for exactly the same
+ * fields, so they read them the same way — an edit that validated differently from the original
+ * would let a correction store something the form could never have created.
+ */
+async function readBill(
+  form: FormData,
+  eventId: string,
+  id: string,
+): Promise<{ expense: Expense } | { error: string }> {
   const description = String(form.get('description') ?? '').trim();
   const payerId = String(form.get('payerId') ?? '');
   if (!description || !payerId) return { error: t.errors.required };
@@ -115,23 +175,58 @@ export async function addExpense(_: ActionResult, form: FormData): Promise<Actio
     new Set(form.getAll('participant').map(String)),
   );
 
-  await recordExpense(await db(), eventId, {
-    id: newId(),
-    description,
-    collector,
-    ...(collectionKey ? { collectionKey } : {}),
-    amount,
-    ...(receiptTotal ? { receiptTotal } : {}),
-    participants,
-  });
+  return {
+    expense: {
+      id,
+      description,
+      collector,
+      ...(collectionKey ? { collectionKey } : {}),
+      amount,
+      ...(receiptTotal ? { receiptTotal } : {}),
+      participants,
+    },
+  };
+}
+
+export async function addExpense(_: ActionResult, form: FormData): Promise<ActionResult> {
+  const groupId = await requireGroup();
+  const eventId = String(form.get('eventId'));
+
+  const read = await readBill(form, eventId, newId());
+  if ('error' in read) return read;
+
+  await recordExpense(await db(), eventId, read.expense);
+  await recompute(groupId, eventId);
+  revalidatePath('/painel');
+  return {};
+}
+
+/**
+ * D31: while the event is open a bill can be fixed — the receipt was read wrong, the buyer
+ * remembered the number late, somebody was on it who should not have been. Whoever already paid
+ * against the old number is flagged for review rather than quietly left wrong.
+ */
+export async function editExpense(_: ActionResult, form: FormData): Promise<ActionResult> {
+  const groupId = await requireGroup();
+  const eventId = String(form.get('eventId'));
+
+  const read = await readBill(form, eventId, String(form.get('expenseId')));
+  if ('error' in read) return read;
+
+  const changed = await updateExpense(await db(), eventId, read.expense);
+  if (!changed) return { error: t.errors.closed };
+
+  await recompute(groupId, eventId);
   revalidatePath('/painel');
   return {};
 }
 
 export async function removeExpense(_: ActionResult, form: FormData): Promise<ActionResult> {
   const groupId = await requireGroup();
+  const eventId = String(form.get('eventId'));
   // D19: soft delete, and any ledger entries it produced are reversed rather than erased.
   await softDeleteExpense(await db(), groupId, String(form.get('expenseId')));
+  await recompute(groupId, eventId);
   revalidatePath('/painel');
   return {};
 }

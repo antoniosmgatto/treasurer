@@ -7,6 +7,7 @@ import {
   type LedgerEntry,
   type Member,
   type Participant,
+  ZERO,
 } from '@treasurer/core';
 import { and, asc, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
@@ -386,6 +387,21 @@ export async function addGuest(
   return id;
 }
 
+/**
+ * D31: what an event is called, when it happened and what it says about itself are all correctable
+ * while it is open. A typo in the name is the same kind of mistake as a typo in an amount.
+ */
+export async function describeEvent(
+  db: Db,
+  eventId: string,
+  input: { name: string; date: string; description: string | null },
+): Promise<void> {
+  await db
+    .update(events)
+    .set({ name: input.name, date: input.date, description: input.description })
+    .where(and(eq(events.id, eventId), eq(events.status, 'open')));
+}
+
 export async function openEvent(
   db: Db,
   input: { groupId: string; name: string; date: string },
@@ -504,6 +520,126 @@ export async function recordExpense(db: Db, eventId: string, expense: Expense): 
       })),
     );
   }
+}
+
+/**
+ * D31: a bill is correctable while the event is open — the amount, who collects it, who was in on
+ * it, all of it. Receipts get read wrong and buyers remember a number late, and an app that makes
+ * that unfixable is worse than the group chat it replaces.
+ *
+ * The shares are rewritten wholesale rather than merged: an edit that unticks somebody has to be
+ * able to remove their row, not only change its weight. Returns false when the event is closed,
+ * which is the one point corrections stop.
+ */
+export async function updateExpense(db: Db, eventId: string, expense: Expense): Promise<boolean> {
+  const [event] = await db
+    .select({ status: events.status })
+    .from(events)
+    .where(and(eq(events.id, eventId), isNull(events.deletedAt)))
+    .limit(1);
+  if (!event || event.status !== 'open') return false;
+
+  const updated = await db
+    .update(expenses)
+    .set({
+      description: expense.description,
+      payerId: expense.collector.kind === 'member' ? expense.collector.memberId : null,
+      collectionKey: expense.collectionKey ?? null,
+      amount: expense.amount,
+      receiptTotalCents: expense.receiptTotal ?? null,
+    })
+    .where(and(eq(expenses.id, expense.id), eq(expenses.eventId, eventId)))
+    .returning({ id: expenses.id });
+  if (updated.length === 0) return false;
+
+  await db.delete(shares).where(eq(shares.expenseId, expense.id));
+  if (expense.participants.length > 0) {
+    await db.insert(shares).values(
+      expense.participants.map((participant) => ({
+        expenseId: expense.id,
+        memberId: participant.memberId,
+        weight: participant.weight,
+      })),
+    );
+  }
+  return true;
+}
+
+/**
+ * What the bills say about a member, kept apart from what has actually moved. The distinction is
+ * the whole of D31: a payment that once squared a charge is not wrong because the charge moved
+ * under it — it is a payment that now needs somebody to look at it.
+ */
+export interface Position {
+  /** The recorded charges. Negative when the member owes, positive when they are owed. */
+  charged: Cents;
+  /** Money that changed hands, in either direction. Zero means nobody has paid anybody. */
+  moved: Cents;
+}
+
+/** Kinds that record a charge rather than a transfer. Adjustments correct charges (D3, D31). */
+const CHARGE_KINDS = new Set(['share', 'front', 'rounding', 'adjustment']);
+
+/**
+ * Per member, for one event. Group-wide balances answered this until a club could have more than
+ * one event; folding two trips into one number makes the second one unreadable.
+ */
+export async function positionsIn(db: Db, eventId: string): Promise<Map<string, Position>> {
+  const rows = await db
+    .select({
+      memberId: ledgerEntries.memberId,
+      kind: ledgerEntries.kind,
+      amount: ledgerEntries.amount,
+    })
+    .from(ledgerEntries)
+    .where(eq(ledgerEntries.eventId, eventId));
+
+  const positions = new Map<string, Position>();
+  for (const row of rows) {
+    const current = positions.get(row.memberId) ?? { charged: ZERO, moved: ZERO };
+    if (CHARGE_KINDS.has(row.kind)) current.charged = cents(current.charged + row.amount);
+    else current.moved = cents(current.moved + row.amount);
+    positions.set(row.memberId, current);
+  }
+  return positions;
+}
+
+/**
+ * Brings the recorded charges back in line with the bills after a correction, without editing a
+ * thing: it appends one adjustment per member for the difference between what the ledger says and
+ * what the event now costs them (D3).
+ *
+ * Only for a published event — before that no charge has been recorded, and appending here would
+ * mean publishing the same numbers twice. Doing nothing when the difference is zero is what makes
+ * it safe to call after every correction, including the ones that change nobody's share.
+ */
+export async function recomputeCharges(
+  db: Db,
+  groupId: string,
+  eventId: string,
+  entries: readonly LedgerEntry[],
+): Promise<void> {
+  const recorded = await positionsIn(db, eventId);
+
+  const wanted = new Map<string, Cents>();
+  for (const entry of entries) {
+    wanted.set(entry.memberId, cents((wanted.get(entry.memberId) ?? 0) + entry.amount));
+  }
+
+  const corrections: LedgerEntry[] = [];
+  for (const memberId of new Set([...recorded.keys(), ...wanted.keys()])) {
+    const delta = cents((wanted.get(memberId) ?? 0) - (recorded.get(memberId)?.charged ?? 0));
+    if (delta === 0) continue;
+    corrections.push({
+      memberId,
+      kind: 'adjustment',
+      amount: delta,
+      eventId,
+      note: 'correção depois do rateio fechado',
+    });
+  }
+
+  await appendEntries(db, groupId, corrections);
 }
 
 /** Entries are only ever appended (D3). There is deliberately no update and no delete. */

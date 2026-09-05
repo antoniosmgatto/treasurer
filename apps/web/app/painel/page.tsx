@@ -1,15 +1,26 @@
 import {
+  cents,
   chatSummary,
   formatBRL,
   formatCode,
   settle,
   type Collector,
   type Expense,
+  type Cents,
   type Member,
+  type MemberSettlement,
 } from '@treasurer/core';
-import { balancesFor, eventsOf, loadEvent, membersOf, openEventFor } from '@treasurer/db';
+import {
+  eventsOf,
+  loadEvent,
+  membersOf,
+  openEventFor,
+  positionsIn,
+  type Position,
+} from '@treasurer/db';
 import Link from 'next/link';
 import { ActionForm } from '@/components/action-form';
+import { BillFields } from '@/components/bill-fields';
 import { CopySummary } from '@/components/copy-summary';
 import { ShareEvent } from '@/components/share-event';
 import { SubmitButton } from '@/components/submit-button';
@@ -22,6 +33,8 @@ import {
   addExpense,
   addGuestToEvent,
   createEvent,
+  describe,
+  editExpense,
   markPaid,
   markReimbursed,
   publish,
@@ -46,6 +59,37 @@ function collectorName(collector: Collector, members: readonly Member[]): string
   return members.find((member) => member.id === collector.memberId)?.name ?? collector.memberId;
 }
 
+/**
+ * Where one member stands on one event, once the charges have been recorded.
+ *
+ * D31: a payment that squared a charge is not wrong because the charge moved underneath it — it
+ * is a payment somebody now has to look at. Recording it as "recebido" and letting the balance
+ * quietly drift is the failure this distinguishes: `moved` says money changed hands, and the
+ * balance says whether it still adds up.
+ */
+type MemberState =
+  | { kind: 'settled' | 'open' }
+  /** `in`: money still has to come from them. `back`: money has to go back to them. */
+  | { kind: 'review'; direction: 'in' | 'back'; amount: Cents };
+
+function stateOf(member: MemberSettlement, position: Position | undefined): MemberState {
+  // Nobody excluded from everything should be asked to transfer R$ 0,00.
+  if (member.owed === 0 && member.net === 0) return { kind: 'settled' };
+  if (!position || position.moved === 0) return { kind: 'open' };
+
+  const balance = cents(position.charged + position.moved);
+  if (balance === 0) return { kind: 'settled' };
+
+  /**
+   * The direction comes from the balance, never from whether they fronted a bill: a debtor who
+   * overpaid and a fronter who was under-reimbursed are the same fact — the club is holding money
+   * that is not its own.
+   */
+  return balance < 0
+    ? { kind: 'review', direction: 'in', amount: cents(-balance) }
+    : { kind: 'review', direction: 'back', amount: balance };
+}
+
 export default async function PanelPage() {
   const groupId = await requireGroup();
   const connection = await db();
@@ -62,7 +106,8 @@ export default async function PanelPage() {
   // Guests belong to the open event, so they exist only in what loadEvent returns (D29).
   const members = loaded?.members ?? club;
   const settlement = loaded ? settle(loaded.event, loaded.members) : null;
-  const balances = await balancesFor(connection, groupId);
+  // Per event, not per club: two trips folded into one balance makes the second unreadable.
+  const positions = await positionsIn(connection, event.id);
   const roster = loaded?.roster ?? [];
   // Weight 0 is on the roster but excluded from a bill; only the ones who came are pre-ticked.
   const rosterIds = new Set(roster.filter((entry) => entry.weight > 0).map((e) => e.memberId));
@@ -87,6 +132,46 @@ export default async function PanelPage() {
           </p>
         )}
       </header>
+
+      {/* D31: what the rolê is called, when it was, and what it tells people. All correctable
+          while it is open — the description is what somebody reads before any bill exists. */}
+      <details open={!event.description}>
+        <summary className="cursor-pointer text-sm font-medium">{t.event.about}</summary>
+        {event.description && (
+          <p className="text-muted-foreground mt-2 text-sm whitespace-pre-line">
+            {event.description}
+          </p>
+        )}
+        <ActionForm action={describe} className="mt-3 flex flex-col gap-3">
+          <input type="hidden" name="eventId" value={event.id} />
+          <div className="flex gap-3">
+            <div className="flex flex-1 flex-col gap-2">
+              <Label htmlFor="eventName">{t.event.name}</Label>
+              <Input id="eventName" name="name" defaultValue={event.name} required />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="eventDate">{t.event.date}</Label>
+              <Input id="eventDate" name="date" type="date" defaultValue={event.date} required />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="eventDescription">{t.event.aboutField}</Label>
+            <textarea
+              id="eventDescription"
+              name="description"
+              rows={3}
+              defaultValue={event.description ?? ''}
+              className="border-input rounded-md border bg-transparent px-3 py-2 text-sm"
+            />
+            <p className="text-muted-foreground text-xs">{t.event.aboutHint}</p>
+          </div>
+          <div>
+            <SubmitButton variant="secondary" size="sm">
+              {t.event.saveAbout}
+            </SubmitButton>
+          </div>
+        </ActionForm>
+      </details>
 
       {/* D12: set who came once; every expense defaults to them. */}
       <section className="flex flex-col gap-3">
@@ -140,114 +225,78 @@ export default async function PanelPage() {
         )}
         <ul className="flex flex-col gap-2">
           {loaded?.event.expenses.map((expense) => (
-            <li key={expense.id} className="flex items-center justify-between gap-3 text-sm">
-              <span>
-                {expense.description}
-                <span className="text-muted-foreground">
-                  {' · '}
-                  {collectorName(expense.collector, members)}
-                </span>
-                {/* D1: an exclusion is stated on the bill, not left for somebody to notice. */}
-                {excludedFrom(expense, members).length > 0 && (
-                  <span className="text-muted-foreground block text-xs">
-                    {t.event.without} {excludedFrom(expense, members).join(', ')}
+            <li key={expense.id} className="text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span>
+                  {expense.description}
+                  <span className="text-muted-foreground">
+                    {' · '}
+                    {collectorName(expense.collector, members)}
                   </span>
-                )}
-              </span>
-              <span className="flex items-center gap-3">
-                <span className="tabular-nums">
-                  {formatBRL(expense.amount)}
-                  {/* Both numbers are true; showing one of them makes somebody look wrong. */}
-                  {expense.receiptTotal !== undefined &&
-                    expense.receiptTotal !== expense.amount && (
-                      <span className="text-muted-foreground block text-xs">
-                        {t.event.note} {formatBRL(expense.receiptTotal)}
-                      </span>
-                    )}
+                  {/* D1: an exclusion is stated on the bill, not left for somebody to notice. */}
+                  {excludedFrom(expense, members).length > 0 && (
+                    <span className="text-muted-foreground block text-xs">
+                      {t.event.without} {excludedFrom(expense, members).join(', ')}
+                    </span>
+                  )}
                 </span>
-                <ActionForm action={removeExpense}>
+                <span className="flex items-center gap-3">
+                  <span className="tabular-nums">
+                    {formatBRL(expense.amount)}
+                    {/* Both numbers are true; showing one of them makes somebody look wrong. */}
+                    {expense.receiptTotal !== undefined &&
+                      expense.receiptTotal !== expense.amount && (
+                        <span className="text-muted-foreground block text-xs">
+                          {t.event.note} {formatBRL(expense.receiptTotal)}
+                        </span>
+                      )}
+                  </span>
+                  <ActionForm action={removeExpense}>
+                    <input type="hidden" name="eventId" value={event.id} />
+                    <input type="hidden" name="expenseId" value={expense.id} />
+                    <SubmitButton variant="ghost" size="sm">
+                      {t.event.remove}
+                    </SubmitButton>
+                  </ActionForm>
+                </span>
+              </div>
+
+              {/* D31: the receipt was read wrong, or the buyer remembered the number late. The
+                  bill is fixable until the rolê is encerrado, and not one moment less. */}
+              <details className="mt-1">
+                <summary className="text-muted-foreground cursor-pointer text-xs">
+                  {t.event.edit}
+                </summary>
+                <ActionForm
+                  action={editExpense}
+                  className="bg-muted/40 mt-2 flex flex-col gap-3 rounded-lg p-3"
+                >
+                  <input type="hidden" name="eventId" value={event.id} />
                   <input type="hidden" name="expenseId" value={expense.id} />
-                  <SubmitButton variant="ghost" size="sm">
-                    {t.event.remove}
-                  </SubmitButton>
+                  <BillFields
+                    id={expense.id}
+                    members={members}
+                    rosterIds={rosterIds}
+                    expense={expense}
+                  />
+                  <div>
+                    <SubmitButton size="sm">{t.event.saveExpense}</SubmitButton>
+                  </div>
                 </ActionForm>
-              </span>
+              </details>
             </li>
           ))}
         </ul>
 
         <ActionForm action={addExpense} className="flex flex-col gap-3 border-t pt-4">
           <input type="hidden" name="eventId" value={event.id} />
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="description">{t.event.description}</Label>
-            <Input id="description" name="description" required />
-          </div>
-          <div className="flex gap-3">
-            <div className="flex flex-1 flex-col gap-2">
-              <Label htmlFor="amount">{t.event.amount}</Label>
-              {/* D20: text, not number — a Brazilian keyboard types 158,73. */}
-              <Input id="amount" name="amount" inputMode="decimal" placeholder="155,00" required />
-            </div>
-            <div className="flex flex-1 flex-col gap-2">
-              <Label htmlFor="receiptTotal">{t.event.receiptTotal}</Label>
-              <Input
-                id="receiptTotal"
-                name="receiptTotal"
-                inputMode="decimal"
-                placeholder="161,47"
-              />
-            </div>
-            <div className="flex flex-1 flex-col gap-2">
-              <Label htmlFor="payerId">{t.event.paidBy}</Label>
-              <select
-                id="payerId"
-                name="payerId"
-                className="border-input h-9 rounded-md border bg-transparent px-3 text-sm"
-                required
-              >
-                {members
-                  .filter((member) => !member.retiredAt)
-                  .map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.name}
-                    </option>
-                  ))}
-                {/* D25: the club is a label with a key, not a member row. */}
-                <option value="club">{t.event.club}</option>
-              </select>
-            </div>
-          </div>
-          {rosterIds.size > 0 && (
-            <div className="flex flex-col gap-2">
-              <Label>{t.event.whoIsIn}</Label>
-              <div className="flex flex-wrap gap-x-4 gap-y-2">
-                {members
-                  .filter((member) => rosterIds.has(member.id))
-                  .map((member) => (
-                    <label key={member.id} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        name="participant"
-                        value={member.id}
-                        defaultChecked
-                        className="size-4"
-                      />
-                      {member.name}
-                    </label>
-                  ))}
-              </div>
-              <p className="text-muted-foreground text-xs">{t.event.whoIsInHint}</p>
-            </div>
-          )}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="collectionKey">{t.event.collectionKey}</Label>
-            <Input id="collectionKey" name="collectionKey" placeholder="41 99999-9999" />
-            <p className="text-muted-foreground text-xs">{t.event.collectionKeyHint}</p>
-          </div>
+          <BillFields id="novo" members={members} rosterIds={rosterIds} />
           <div>
             <SubmitButton>{t.event.addExpense}</SubmitButton>
           </div>
         </ActionForm>
+
+        <p className="text-muted-foreground text-xs">{t.event.correctionHint}</p>
       </section>
 
       {settlement && settlement.members.length > 0 && (
@@ -264,14 +313,11 @@ export default async function PanelPage() {
             </thead>
             <tbody>
               {settlement.members.map((member) => {
-                const balance = balances.get(member.memberId) ?? 0;
                 // Net decides the direction of the one button: somebody who both collects a bill
                 // and owes on others is square with the group only once both sides have moved.
                 const fronter = member.net > 0;
-                // A debtor's balance climbs towards zero as they pay; a fronter's falls towards
-                // zero as they are paid back. Both are settled when they reach it.
-                const settled =
-                  event.chargesPublishedAt !== null && (fronter ? balance <= 0 : balance >= 0);
+                const state = stateOf(member, positions.get(member.memberId));
+                const settled = state.kind === 'settled';
                 return (
                   <tr key={member.memberId} className="border-t">
                     <td className="py-2">
@@ -298,19 +344,49 @@ export default async function PanelPage() {
                       {settled ? (
                         <span className="text-muted-foreground">✓</span>
                       ) : (
-                        /* D13: one tap records that the money moved, in whichever direction. */
-                        <ActionForm action={fronter ? markReimbursed : markPaid}>
-                          <input type="hidden" name="eventId" value={event.id} />
-                          <input type="hidden" name="memberId" value={member.memberId} />
-                          <input
-                            type="hidden"
-                            name="amount"
-                            value={String(fronter ? member.net : member.owed)}
-                          />
-                          <SubmitButton variant="ghost" size="sm">
-                            {fronter ? t.settlement.markReimbursed : t.settlement.markPaid}
-                          </SubmitButton>
-                        </ActionForm>
+                        <>
+                          {/* D31: they paid, and then the bill moved under them. Naming the gap
+                              is the whole point — the alternative is a number that went wrong
+                              and a person who is told nothing about it. */}
+                          {state.kind === 'review' && (
+                            <span className="text-destructive block text-xs">
+                              {t.settlement.needsReview}:{' '}
+                              {state.direction === 'in'
+                                ? t.settlement.short
+                                : t.settlement.toReturn}{' '}
+                              <span className="tabular-nums">{formatBRL(state.amount)}</span>
+                            </span>
+                          )}
+                          {/* D13: one tap records that the money moved, in whichever direction.
+                              After a correction the direction is the gap's, not the member's
+                              role: whoever is holding money that is not theirs hands it over. */}
+                          <ActionForm
+                            action={
+                              (state.kind === 'review' ? state.direction === 'back' : fronter)
+                                ? markReimbursed
+                                : markPaid
+                            }
+                          >
+                            <input type="hidden" name="eventId" value={event.id} />
+                            <input type="hidden" name="memberId" value={member.memberId} />
+                            <input
+                              type="hidden"
+                              name="amount"
+                              value={String(
+                                state.kind === 'review'
+                                  ? state.amount
+                                  : fronter
+                                    ? member.net
+                                    : member.owed,
+                              )}
+                            />
+                            <SubmitButton variant="ghost" size="sm">
+                              {(state.kind === 'review' ? state.direction === 'back' : fronter)
+                                ? t.settlement.markReimbursed
+                                : t.settlement.markPaid}
+                            </SubmitButton>
+                          </ActionForm>
+                        </>
                       )}
                     </td>
                   </tr>
@@ -337,6 +413,9 @@ export default async function PanelPage() {
           <p className="text-muted-foreground text-xs">
             {t.settlement.rounding}: {formatBRL(settlement.rounding)}
           </p>
+          {settlement.members.some(
+            (member) => stateOf(member, positions.get(member.memberId)).kind === 'review',
+          ) && <p className="text-muted-foreground text-xs">{t.settlement.needsReviewHint}</p>}
 
           {!event.chargesPublishedAt && (
             <ActionForm action={publish}>
