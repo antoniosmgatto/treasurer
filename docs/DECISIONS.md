@@ -301,3 +301,18 @@ that event and no other. `nextCode` skips null codes, so a guest never spends on
 The alternative was the weight-2 trick — the member who brought him carries a double share and
 settles privately. That keeps the app simpler and pushes the exact problem this project exists to
 solve back into a private conversation.
+
+## D30 — The link preview carries no amounts and no club name
+
+The card a rolê renders in a chat says what it is, when it was, and how many went. Nothing else.
+
+The link is permanent and meant to be forwarded, so its preview appears in conversations nobody
+here will ever see — a screenshot of the group chat, a message passed to a wife, a thread three
+clubs away. What the card contains is what those people learn.
+
+The club's name stays private because that was the first constraint stated for this project,
+before any feature; amounts stay off because a total is the one number a stranger can draw
+conclusions from. Anybody who taps through gets everything immediately, which is the point: the
+gate is holding the link, not the preview.
+
+Search engines are turned away from the same pages for the same reason.

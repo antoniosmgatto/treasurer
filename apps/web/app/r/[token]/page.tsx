@@ -1,11 +1,43 @@
 import { formatBRL, settle } from '@treasurer/core';
 import { eventByShareToken, loadEvent } from '@treasurer/db';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ShareEvent } from '@/components/share-event';
 import { db } from '@/lib/db';
 import { t } from '@/lib/labels';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * What a forwarded link says about the club: the rolê, when it was, how many went. No amounts,
+ * and never the group's name (D30).
+ *
+ * A preview renders in chats nobody here will ever see, and the link is permanent by design — so
+ * the card has to be safe in the hands of somebody who was never on the trip. Search engines are
+ * turned away for the same reason.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> {
+  const { token } = await params;
+  const found = await eventByShareToken(await db(), token);
+  if (!found) return { title: t.appName, robots: { index: false, follow: false } };
+
+  const loaded = await loadEvent(await db(), found.event.id);
+  const headcount = (loaded?.roster ?? []).filter((entry) => entry.weight > 0).length;
+  const description = `${found.event.date} · ${headcount} ${t.share.people}`;
+
+  return {
+    title: found.event.name,
+    description,
+    robots: { index: false, follow: false },
+    openGraph: { title: found.event.name, description, type: 'website' },
+    twitter: { card: 'summary', title: found.event.name, description },
+  };
+}
 
 /**
  * The one link for a rolê, pasted into the group chat. Everybody holding it sees the whole table
@@ -46,6 +78,8 @@ export default async function EventPage({ params }: { params: Promise<{ token: s
         </div>
         <span className="tabular-nums">{formatBRL(settlement.total)}</span>
       </header>
+
+      <ShareEvent token={token} name={found.event.name} date={found.event.date} />
 
       <section className="flex flex-col gap-1">
         <h2 className="text-muted-foreground text-xs">{t.share.tapYourName}</h2>
