@@ -7,6 +7,7 @@ import {
   appendEntries,
   balancesFor,
   closeEvent,
+  eventByShareToken,
   eventsOf,
   groupByWriteToken,
   lastEventFor,
@@ -44,9 +45,13 @@ beforeEach(async () => {
     { id: 'm02', name: 'Membro 02', code: 2 },
     { id: 'm03', name: 'Membro 03', code: 3 },
   ]);
-  await db
-    .insert(events)
-    .values({ id: EVENT, groupId: GROUP, name: 'Churrasco', date: '2026-09-12' });
+  await db.insert(events).values({
+    id: EVENT,
+    groupId: GROUP,
+    name: 'Churrasco',
+    date: '2026-09-12',
+    shareToken: newToken(),
+  });
 });
 
 describe('the event roster (D12)', () => {
@@ -378,5 +383,26 @@ describe('closing a rolê', () => {
 
     // And a member who taps their link now lands on the newest event, open or not.
     expect((await lastEventFor(db, GROUP))!.name).toBe('Churrasco');
+  });
+});
+
+describe('the link for the rolê', () => {
+  it('opens the event for anybody holding it, and nothing else', async () => {
+    const found = await eventByShareToken(db, (await eventsOf(db, GROUP))[0]!.shareToken!);
+    expect(found?.event.id).toBe(EVENT);
+    expect(found?.groupId).toBe(GROUP);
+
+    expect(await eventByShareToken(db, 'nao-existe')).toBeNull();
+  });
+
+  it('gives every rolê its own link', async () => {
+    await closeEvent(db, EVENT);
+    const next = await openEvent(db, { groupId: GROUP, name: 'Churrasco', date: '2026-09-05' });
+    const all = await eventsOf(db, GROUP);
+    const tokens = all.map((entry) => entry.shareToken);
+    expect(new Set(tokens).size).toBe(all.length);
+    expect(
+      (await eventByShareToken(db, all.find((e) => e.id === next)!.shareToken!))?.event.id,
+    ).toBe(next);
   });
 });

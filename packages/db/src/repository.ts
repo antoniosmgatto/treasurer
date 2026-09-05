@@ -391,10 +391,27 @@ export async function openEvent(
   input: { groupId: string; name: string; date: string },
 ): Promise<string> {
   const id = newId();
-  await db
-    .insert(events)
-    .values({ id, groupId: input.groupId, name: input.name, date: input.date });
+  await db.insert(events).values({
+    id,
+    groupId: input.groupId,
+    name: input.name,
+    date: input.date,
+    shareToken: newToken(),
+  });
   return id;
+}
+
+/** The one link for a rolê: whoever holds it sees the whole table (Q34). */
+export async function eventByShareToken(
+  db: Db,
+  token: string,
+): Promise<{ event: EventRow; groupId: string } | null> {
+  const [row] = await db
+    .select()
+    .from(events)
+    .where(and(eq(events.shareToken, token), isNull(events.deletedAt)))
+    .limit(1);
+  return row ? { event: row, groupId: row.groupId } : null;
 }
 
 export async function addMember(

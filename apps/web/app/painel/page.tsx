@@ -350,6 +350,12 @@ export default async function PanelPage() {
                   became the ledger in the first place (D15). */}
               <CopySummary text={chatSummary(loaded.event, settlement)} />
 
+              {/* One link for the whole rolê: what actually gets pasted in the group (Q12). */}
+              <div className="flex flex-col gap-1 border-t pt-4">
+                <h3 className="text-muted-foreground text-xs">{t.share.link}</h3>
+                <CopySummary text={`/r/${event.shareToken}`} label={t.share.copyLink} />
+              </div>
+
               {/* Closing is what lets the next rolê exist (D4). It closes whatever the state of
                   the payments — somebody who pays late should not hold the whole club. */}
               <ActionForm action={settleEvent} className="flex flex-col gap-2 border-t pt-4">
