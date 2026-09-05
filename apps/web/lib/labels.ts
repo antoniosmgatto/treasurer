@@ -107,6 +107,24 @@ export const t = {
     retired: 'Saiu do clube',
   },
 
+  /** D35: the clube is picked from a list rather than proven by holding its link. */
+  club: {
+    title: 'Clubes',
+    current: 'atual',
+    use: 'Usar este',
+    none: 'Nenhum clube ainda. Crie o primeiro aí em baixo.',
+    new: 'Novo clube',
+    name: 'Nome do clube',
+    newHint: 'Começa vazio. Os membros entram um a um em Membros, e os códigos saem sozinhos.',
+    create: 'Criar clube',
+    leave: 'Sair',
+    treasurerLink: 'Link do tesoureiro',
+    treasurerLinkHint:
+      'Guarde. Abre o painel direto neste clube, sem passar pela lista. `pnpm cli links --rotate` troca ele se vazar.',
+    unknown: 'Esse clube não existe mais.',
+    treasurer: 'Sou o tesoureiro',
+  },
+
   /** D34: says nothing about the club or what is behind it. */
   gate: {
     title: 'Acesso restrito',
