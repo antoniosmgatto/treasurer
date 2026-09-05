@@ -103,26 +103,30 @@ $EDITOR club.private.json
 pnpm cli seed club.private.json
 ```
 
-It prints the treasurer link and one link per member, as paths:
+It prints the treasurer link as a path, then the roster it created:
 
 ```
 Link do tesoureiro (guarde, dá acesso de escrita):
   /acesso/xxxxxxxx
 
-Links dos membros:
-  01  Fulano                /e/yyyyyyyy
+Membros:
+  01  Fulano
 ```
 
-Prepend your deployment's domain to each. The treasurer link is the write link — opening it
-once sets a cookie and redirects to a clean URL, so it should be opened by the treasurer and
-nobody else. Member links are read-only and safe to send individually.
+Prepend your deployment's domain to the treasurer link. It is the write link — opening it once
+sets a cookie and redirects to a clean URL, so it should be opened by the treasurer and nobody
+else.
+
+Members get no link of their own (D32). What they receive is the rolê's link, once per rolê, from
+the panel after the rateio is closed — one URL pasted into the group chat, where each of them taps
+their own name.
 
 Seeding runs migrations itself, so step 3 is only strictly needed when you are updating the
 schema of a database that already exists.
 
 If you lose the output, `pnpm cli links` prints it again against the same `DATABASE_URL`. If the
 treasurer's link leaks — a screenshot, a pasted chat message — `pnpm cli links --rotate` issues a
-new one and the old URL stops working immediately. Member links are unaffected.
+new one and the old URL stops working immediately. The rolê links are unaffected.
 
 ## Notes
 
