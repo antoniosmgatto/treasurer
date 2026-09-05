@@ -2,19 +2,64 @@
   "name": "Moto Clube",
   "members": [
     {
-      "name": "Membro 01"
+      "name": "Membro 01",
+      "code": 1
     },
     {
-      "name": "Membro 02"
+      "name": "Membro 02",
+      "code": 2
     },
     {
-      "name": "Membro 03"
+      "name": "Membro 03",
+      "code": 3
     },
     {
-      "name": "Membro 04"
+      "name": "Membro 04",
+      "code": 4
     },
     {
-      "name": "Membro 05"
+      "name": "Membro 05",
+      "code": 5
+    },
+    {
+      "name": "Membro 06",
+      "code": 6
+    },
+    {
+      "name": "Membro 07",
+      "code": 7
+    },
+    {
+      "name": "Membro 08",
+      "code": 8
+    },
+    {
+      "name": "Membro 09",
+      "code": 9
+    },
+    {
+      "name": "Membro 10",
+      "code": 10
+    },
+    {
+      "name": "Membro 11",
+      "code": 11
+    },
+    {
+      "name": "Membro 12",
+      "code": 12
+    },
+    {
+      "name": "Membro 13",
+      "code": 13
+    },
+    {
+      "name": "Membro 14",
+      "code": 14
+    },
+    {
+      "name": "Membro 15",
+      "code": 15
     }
   ]
 }
