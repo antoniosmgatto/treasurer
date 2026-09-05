@@ -1,5 +1,6 @@
-import { eventsOf, type EventRow } from '@treasurer/db';
+import { eventsOf, groupById, type EventRow } from '@treasurer/db';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { ActionForm } from '@/components/action-form';
 import { SubmitButton } from '@/components/submit-button';
 import { Input } from '@/components/ui/input';
@@ -21,19 +22,23 @@ export const dynamic = 'force-dynamic';
  */
 export default async function PanelPage() {
   const groupId = await requireGroup();
-  const events = await eventsOf(await db(), groupId);
+  const connection = await db();
+
+  /**
+   * The cookie lasts a year and names a clube that may not be here any more — a database that was
+   * swapped, a clube that was never created on this one. An empty panel with no explanation is
+   * worse than being sent back to the list (D35).
+   */
+  if (!(await groupById(connection, groupId))) redirect('/painel/clubes');
+
+  const events = await eventsOf(connection, groupId);
   const open = events.filter((event) => event.status === 'open');
   // A settled rolê stops being current without ceasing to exist.
   const past = events.filter((event) => event.status === 'settled');
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-8 p-5">
-      <header className="flex items-baseline justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.appName}</h1>
-        <Link href="/painel/membros" className="text-muted-foreground text-sm underline">
-          {t.event.members}
-        </Link>
-      </header>
+      <h1 className="text-2xl font-semibold tracking-tight">{t.appName}</h1>
 
       <ActionForm action={createEvent} className="flex flex-col gap-3">
         <h2 className="font-medium">{t.event.newEvent}</h2>

@@ -284,7 +284,30 @@ export async function createGroup(
   };
 }
 
-/** Every club in the database, for a CLI that has to name one before it can act on it. */
+/**
+ * The club a cookie names, or null when it names one that is not here — a database that was
+ * swapped, a club that was never created on this one. The panel needs to tell those apart from a
+ * club with nothing in it yet (D35).
+ */
+export async function groupById(
+  db: Db,
+  groupId: string,
+): Promise<{ id: string; name: string } | null> {
+  const [row] = await db
+    .select({ id: groups.id, name: groups.name })
+    .from(groups)
+    .where(eq(groups.id, groupId))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * Every club in the database — for a CLI that has to name one before it can act on it, and since
+ * D35 for the panel's picker too.
+ *
+ * Unscoped, and deliberately: there is nothing yet to scope it by. What stands in front of it is
+ * the passphrase (D34), which is why the picker is behind the gate and not merely behind a cookie.
+ */
 export async function allGroups(db: Db): Promise<{ id: string; name: string }[]> {
   return db
     .select({ id: groups.id, name: groups.name })

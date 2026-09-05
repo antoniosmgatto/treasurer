@@ -126,6 +126,11 @@ their own name.
 Seeding runs migrations itself, so step 3 is only strictly needed when you are updating the
 schema of a database that already exists.
 
+A clube can also be created from the panel now, at `/painel/clubes` (D35) — empty, with the members
+added one at a time next door. That is the right route for a throwaway clube to try something on
+without touching the real roster. The CLI stays the right route for the real one: it reads fifteen
+names out of a JSON file in one go, which a form asking one at a time is the wrong instrument for.
+
 If you lose the output, `pnpm cli links` prints it again against the same `DATABASE_URL`. If the
 treasurer's link leaks — a screenshot, a pasted chat message — `pnpm cli links --rotate` issues a
 new one and the old URL stops working immediately. The rolê links are unaffected.

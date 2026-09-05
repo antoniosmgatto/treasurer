@@ -1,6 +1,5 @@
 import { formatCode } from '@treasurer/core';
 import { membersOf } from '@treasurer/db';
-import Link from 'next/link';
 import { ActionForm } from '@/components/action-form';
 import { SubmitButton } from '@/components/submit-button';
 import { Input } from '@/components/ui/input';
@@ -19,12 +18,7 @@ export default async function MembersPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-8 p-5">
-      <header className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.admin.title}</h1>
-        <Link href="/painel" className="text-muted-foreground text-sm underline">
-          {t.event.expenses}
-        </Link>
-      </header>
+      <h1 className="text-2xl font-semibold tracking-tight">{t.admin.title}</h1>
 
       <ul className="flex flex-col">
         {members.map((member) => (

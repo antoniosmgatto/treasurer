@@ -25,7 +25,8 @@ export async function requireGate(): Promise<void> {
 export async function requireGroup(): Promise<string> {
   await requireGate();
   const groupId = (await cookies()).get(GROUP_COOKIE)?.value;
-  if (!groupId) redirect('/');
+  // D35: a picker exists now, so no cookie means "choose one" rather than a static dead end.
+  if (!groupId) redirect('/painel/clubes');
   return groupId;
 }
 

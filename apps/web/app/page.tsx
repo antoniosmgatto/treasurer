@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { t } from '@/lib/labels';
 
 export default async function HomePage({
@@ -13,6 +14,13 @@ export default async function HomePage({
         {acesso === 'invalido'
           ? t.errors.noAccess
           : 'Abra o link que você recebeu para ver a sua parte no rolê.'}
+      </p>
+      {/* D35: the panel is no longer reached only by holding a link, so it needs somewhere to be
+          reached from. It gives away nothing the path `/painel` does not. */}
+      <p className="text-muted-foreground text-sm">
+        <Link href="/painel" className="underline underline-offset-4">
+          {t.club.treasurer}
+        </Link>
       </p>
     </main>
   );

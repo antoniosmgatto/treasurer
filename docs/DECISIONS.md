@@ -458,3 +458,33 @@ It is obscurity plus a shared secret, not authentication. That is proportionate 
 it — first names, the price of a churrasco, and a ledger that only ever grows (D3), so the worst a
 stranger can do is add something everybody can see, with payment keys deliberately absent (D8). It
 is a placeholder for accounts and not a substitute for them.
+
+## D35 — The clube is picked, not held. D9 and D18 are amended
+
+D9 made the unguessable link the credential: hold the write link and you may write. D18 said the
+first clube therefore has to be created from a terminal, because the page that would create one
+needs a token that only creating one issues. Both were right, and both stopped describing the whole
+surface the moment the passphrase existed.
+
+The panel is now reachable before any clube is, so it can make one. `/painel/clubes` lists every
+clube in the database, switches with a click, and creates one from a name alone — empty, with the
+roster filled in next door where `addMember` already hands out the codes. The write link survives
+as a shortcut: it still names one clube and sets the same cookie, and it is still what the CLI
+prints. It is no longer the boundary.
+
+That is a real move of the trust boundary and it should be said rather than implied. Behind the
+gate, everybody sees every clube's name and can switch into any of them, and the group cookie is
+still an unsigned id that the picker now prints into a form. That is correct while every clube in
+the database belongs to the same person — which is exactly what a throwaway clube to test on
+means. It stops being correct the first time two clubes have two different treasurers, and that is
+the moment accounts have to exist and the rest of D9 comes out with them.
+
+What makes it defensible in the meantime is that reaching the page which sets the cookie now costs
+a secret (D34). Without the passphrase in front of it, a picker that lists every clube is not a
+convenience — it is the front door standing open. The two records ship together for that reason,
+and the gate has to be live on a deployment before this screen reaches it.
+
+**Why the CLI stays.** `pnpm cli seed` reads a whole roster out of a JSON file in one go, and that
+is still the right way to create the real clube with fifteen real names — a form that asks for them
+one at a time is the wrong instrument for a list you already have written down. The picker is for
+the clube you are about to throw away.
