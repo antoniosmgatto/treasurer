@@ -39,6 +39,9 @@ export function validateEvent(event: Event, members: readonly Member[]): string[
       problems.push(`${expense.description}: unknown payer ${expense.collector.memberId}`);
     }
     if (expense.amount <= 0) problems.push(`${expense.description}: amount must be positive`);
+    if (expense.receiptTotal !== undefined && expense.receiptTotal <= 0) {
+      problems.push(`${expense.description}: receipt total must be positive`);
+    }
 
     const seen = new Set<string>();
     for (const participant of expense.participants) {

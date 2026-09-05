@@ -33,7 +33,9 @@ export const acampamento: Event = {
       description: 'Carne',
       collector: { kind: 'member', memberId: 'm01' },
       collectionKey: '41999000001',
+      // The nota read R$161,47; he asked for R$155,00 and split that (D28).
       amount: cents(15_500),
+      receiptTotal: cents(16_147),
       participants: everyone,
     },
     {

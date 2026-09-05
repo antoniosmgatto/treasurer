@@ -1,0 +1,1 @@
+ALTER TABLE "expense" ADD COLUMN "receipt_total_cents" integer;

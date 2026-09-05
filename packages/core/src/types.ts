@@ -51,7 +51,14 @@ export interface Expense {
    * the same person may collect to a different key on another trip.
    */
   collectionKey?: string;
+  /** What the members are charged, and the only number that is split. */
   amount: Cents;
+  /**
+   * What the paperwork says, when it says something different. The meat receipt read R$161,47
+   * and the buyer asked for R$155,00 because he rounded in the group's favour: both numbers are
+   * true, and a model that holds one of them makes somebody look wrong.
+   */
+  receiptTotal?: Cents;
   participants: readonly Participant[];
   receiptUrl?: string;
 }

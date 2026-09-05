@@ -268,3 +268,18 @@ deleted.
 In the database this is a null `payer_id`: no member row fronted it. In the engine the club is a
 collector with no ledger entries of its own, which is why the members' entries no longer sum to
 zero on their own — they fall short by exactly what the club collects.
+
+## D28 — The nota and the amount charged are two fields
+
+A bill carries what the paperwork says and what the members are asked for, and only the second one
+is ever split.
+
+The meat receipt read R$161,47. The buyer asked for R$155,00, because he rounded in the group's
+favour and absorbed the difference himself. Both numbers are true and a model holding one of them
+makes somebody look wrong: store only the receipt and the group is overcharged against his wishes;
+store only the charge and his generosity disappears, along with the ability to check the bill
+against the photograph.
+
+The receipt total is optional, and nothing validates one against the other. Charging more than the
+nota is not automatically a mistake — a tip, or a cost the receipt never covered — and a rule that
+refuses it would be wrong more often than the mistake it catches.

@@ -117,6 +117,7 @@ function toEvent(
     payerId: string | null;
     collectionKey: string | null;
     amount: number;
+    receiptTotalCents: number | null;
     receiptUrl: string | null;
   }[],
   sharesByExpense: ReadonlyMap<string, { memberId: string; weight: number }[]>,
@@ -136,6 +137,9 @@ function toEvent(
         amount: cents(expenseRow.amount),
         participants: sharesByExpense.get(expenseRow.id) ?? roster,
       };
+      if (expenseRow.receiptTotalCents !== null) {
+        expense.receiptTotal = cents(expenseRow.receiptTotalCents);
+      }
       if (expenseRow.collectionKey) expense.collectionKey = expenseRow.collectionKey;
       if (expenseRow.receiptUrl) expense.receiptUrl = expenseRow.receiptUrl;
       return expense;
@@ -411,6 +415,7 @@ export async function recordExpense(db: Db, eventId: string, expense: Expense): 
     payerId: expense.collector.kind === 'member' ? expense.collector.memberId : null,
     collectionKey: expense.collectionKey ?? null,
     amount: expense.amount,
+    receiptTotalCents: expense.receiptTotal ?? null,
     receiptUrl: expense.receiptUrl ?? null,
   });
 

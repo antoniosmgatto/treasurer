@@ -66,6 +66,18 @@ export async function addExpense(_: ActionResult, form: FormData): Promise<Actio
   }
   if (amount <= 0) return { error: t.errors.badAmount };
 
+  // Optional: the nota, when the buyer asked for less than it says (D28).
+  const receiptRaw = String(form.get('receiptTotal') ?? '').trim();
+  let receiptTotal;
+  if (receiptRaw) {
+    try {
+      receiptTotal = parseBRL(receiptRaw);
+    } catch {
+      return { error: t.errors.badAmount };
+    }
+    if (receiptTotal <= 0) return { error: t.errors.badAmount };
+  }
+
   /**
    * D12: participants are overrides. An untouched form ticks everybody, which is the same thing
    * as saying nothing, so it stores nothing and the roster answers for it later.
@@ -85,6 +97,7 @@ export async function addExpense(_: ActionResult, form: FormData): Promise<Actio
     collector,
     ...(collectionKey ? { collectionKey } : {}),
     amount,
+    ...(receiptTotal ? { receiptTotal } : {}),
     participants,
   });
   revalidatePath('/painel');
