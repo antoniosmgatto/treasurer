@@ -2,8 +2,9 @@
 
 Vercel for the app, Neon for the database. Both free at this volume, no card on file.
 
-The app needs exactly one secret: `DATABASE_URL`. There is no signup, no auth provider, no
-object storage yet — access is by unguessable link, so there is nothing else to configure.
+The app needs two secrets: `DATABASE_URL`, and `PANEL_PASSPHRASE` for the panel's gate. There is
+still no auth provider and no object storage — members reach a rolê by its own link and are asked
+for nothing, and the panel is behind one shared phrase (D34).
 
 ---
 
@@ -115,7 +116,8 @@ Membros:
 
 Prepend your deployment's domain to the treasurer link. It is the write link — opening it once
 sets a cookie and redirects to a clean URL, so it should be opened by the treasurer and nobody
-else.
+else. On a deployment it now lands **behind the passphrase**: a browser that has not answered is
+sent to `/entrar` first. It names which club, not whether you may (D34).
 
 Members get no link of their own (D32). What they receive is the rolê's link, once per rolê, from
 the panel after the rateio is closed — one URL pasted into the group chat, where each of them taps
@@ -128,7 +130,50 @@ If you lose the output, `pnpm cli links` prints it again against the same `DATAB
 treasurer's link leaks — a screenshot, a pasted chat message — `pnpm cli links --rotate` issues a
 new one and the old URL stops working immediately. The rolê links are unaffected.
 
+## 5. The passphrase
+
+Nothing guards the panel until this exists. Set it for Production, and for Preview as a second
+layer over the platform's own protection of preview URLs:
+
+```sh
+npx vercel env add PANEL_PASSPHRASE production
+npx vercel env add PANEL_PASSPHRASE preview
+```
+
+**Not Development.** That environment is what `vercel env pull` writes into a local file, and a
+passphrase that reaches `next dev` gates the machine you develop on for no reason — the absence of
+the variable is the whole switch (D34).
+
+Environment variables reach a deployment when it is built, so **redeploy after adding it**
+(Deployments → ⋯ → Redeploy) or the gate is not there yet.
+
+Pick something somebody can type on a phone in a car park: four random words, not base64.
+
+What it covers and what it deliberately does not:
+
+| Path              |                                                       |
+| ----------------- | ----------------------------------------------------- |
+| `/painel/*`       | behind the passphrase                                 |
+| `/acesso/<token>` | behind the passphrase                                 |
+| `/`               | open                                                  |
+| `/r/<token>`      | **open** — the club has to be able to read their rolê |
+
+Changing the variable later logs every browser out, because the cookie holds a digest of the phrase
+rather than a flag. That is the revocation mechanism: there is no other one.
+
 ## Notes
+
+**The gate is a shared phrase, not a login.** No rate limiting, no lockout, no record of who came
+through it, and one secret for everybody. The strength is entirely in the phrase. What is behind it
+is first names, the price of a churrasco and a ledger that only ever grows (D3), with payment keys
+deliberately absent (D8) — so the worst a stranger who guesses it can do is add something everybody
+can see. It stops somebody who found `/painel`; it is not authentication, and accounts replace it.
+
+**Why not the platform's own protection.** On the Hobby plan the only scope available is Standard
+Protection, which covers preview deployments and leaves the production domain public — the inverse
+of what is wanted here. Protecting production needs Pro plus the Advanced Deployment Protection
+add-on at $150/month, and it would lock the club out of `/r/<token>`, which is the one thing that
+must stay open.
 
 **The database is not a secret store.** Member Pix keys are deliberately not persisted (D8).
 Nothing in the database is worth more than the links themselves.
