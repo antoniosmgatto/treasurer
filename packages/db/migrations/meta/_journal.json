@@ -36,6 +36,13 @@
       "when": 1788612738653,
       "tag": "0004_guests",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788615033213,
+      "tag": "0005_event_share_token",
+      "breakpoints": true
     }
   ]
 }

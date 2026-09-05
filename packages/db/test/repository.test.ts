@@ -43,6 +43,7 @@ async function seed(): Promise<void> {
     groupId: GROUP,
     name: 'Acampamento',
     date: '2026-08-28',
+    shareToken: newToken(),
   });
 }
 
@@ -141,6 +142,7 @@ describe('the database enforces the decisions, not just the code', () => {
         groupId: GROUP,
         name: 'Churrasco',
         date: '2026-09-12',
+        shareToken: newToken(),
       }),
     );
     expect(detail).toContain('event_one_open_per_group_idx');
@@ -154,6 +156,7 @@ describe('the database enforces the decisions, not just the code', () => {
         groupId: GROUP,
         name: 'Churrasco',
         date: '2026-09-12',
+        shareToken: newToken(),
       }),
     ).resolves.not.toThrow();
   });

@@ -96,6 +96,11 @@ export const events = pgTable(
      * amount they might pay (D15).
      */
     chargesPublishedAt: timestamp('charges_published_at', { withTimezone: true }),
+    /**
+     * The one link for this rolê, pasted into the group chat. Permanent by design (Q16): a link
+     * people forward is a link that has to keep working.
+     */
+    shareToken: text('share_token').notNull(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (table) => [
@@ -106,6 +111,7 @@ export const events = pgTable(
     uniqueIndex('event_one_open_per_group_idx')
       .on(table.groupId)
       .where(sql`${table.status} = 'open' and ${table.deletedAt} is null`),
+    uniqueIndex('event_share_token_idx').on(table.shareToken),
     index('event_group_idx').on(table.groupId),
   ],
 );

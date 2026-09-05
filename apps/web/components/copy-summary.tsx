@@ -9,7 +9,7 @@ import { t } from '@/lib/labels';
  * worth pasting rather than a page worth visiting. The text is built on the server; this only
  * moves it to the clipboard.
  */
-export function CopySummary({ text }: { text: string }) {
+export function CopySummary({ text, label }: { text: string; label?: string }) {
   const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
 
   async function copy() {
@@ -28,7 +28,7 @@ export function CopySummary({ text }: { text: string }) {
     <div className="flex flex-col gap-2">
       <div>
         <Button type="button" variant="secondary" size="sm" onClick={copy}>
-          {state === 'copied' ? t.settlement.copied : t.settlement.copy}
+          {state === 'copied' ? t.settlement.copied : (label ?? t.settlement.copy)}
         </Button>
       </div>
       {state === 'failed' && (
@@ -36,7 +36,7 @@ export function CopySummary({ text }: { text: string }) {
           readOnly
           value={text}
           rows={8}
-          aria-label={t.settlement.copy}
+          aria-label={label ?? t.settlement.copy}
           className="border-input w-full rounded-md border bg-transparent p-3 font-mono text-xs"
         />
       )}

@@ -61,6 +61,12 @@ export const t = {
     copied: 'Copiado!',
   },
 
+  share: {
+    tapYourName: 'Toque no seu nome',
+    link: 'Link do rolê',
+    copyLink: 'Copiar link do rolê',
+  },
+
   member: {
     yourShare: 'Sua parte',
     roundedUp: 'Arredondado pra cima pros centavos fecharem com a nota.',
