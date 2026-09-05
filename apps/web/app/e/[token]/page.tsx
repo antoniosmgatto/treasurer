@@ -1,5 +1,11 @@
 import { formatBRL, formatCode, settle } from '@treasurer/core';
-import { balancesFor, loadEvent, memberByReadToken, openEventFor } from '@treasurer/db';
+import {
+  balancesFor,
+  lastEventFor,
+  loadEvent,
+  memberByReadToken,
+  openEventFor,
+} from '@treasurer/db';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
 import { t } from '@/lib/labels';
@@ -17,7 +23,14 @@ export default async function MemberPage({ params }: { params: Promise<{ token: 
   const found = await memberByReadToken(connection, token);
   if (!found) notFound();
 
-  const openEvent = await openEventFor(connection, found.groupId);
+  /**
+   * The open rolê when there is one, otherwise the last one there was. A member who taps their
+   * link the week after a trip was closed should still find what they paid — closing an event is
+   * not the same as deleting it.
+   */
+  const openEvent =
+    (await openEventFor(connection, found.groupId)) ??
+    (await lastEventFor(connection, found.groupId));
   if (!openEvent) {
     return <Empty name={found.member.name}>{t.member.noEvent}</Empty>;
   }

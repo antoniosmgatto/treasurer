@@ -4,6 +4,7 @@ import { CLUB, parseBRL, participantsFor, settle, type Collector } from '@treasu
 import {
   addGuest,
   addMember,
+  closeEvent,
   appendEntries,
   loadEvent,
   newId,
@@ -150,6 +151,20 @@ export async function publish(_: ActionResult, form: FormData): Promise<ActionRe
   const settlement = settle(loaded.event, loaded.members);
   await appendEntries(connection, groupId, settlement.entries);
   await publishCharges(connection, eventId);
+  revalidatePath('/painel');
+  return {};
+}
+
+/**
+ * Closing is what lets the next rolê exist: the database allows one open event per group (D4),
+ * so an event that can never be closed is a club with exactly one event, forever.
+ *
+ * It closes at any time. Whatever is still open stays open in the record rather than blocking
+ * the group from moving on — some people pay late, and one of them should not hold the club.
+ */
+export async function settleEvent(_: ActionResult, form: FormData): Promise<ActionResult> {
+  await requireGroup();
+  await closeEvent(await db(), String(form.get('eventId')));
   revalidatePath('/painel');
   return {};
 }

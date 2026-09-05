@@ -7,7 +7,7 @@ import {
   type Expense,
   type Member,
 } from '@treasurer/core';
-import { balancesFor, loadEvent, membersOf, openEventFor } from '@treasurer/db';
+import { balancesFor, eventsOf, loadEvent, membersOf, openEventFor } from '@treasurer/db';
 import Link from 'next/link';
 import { ActionForm } from '@/components/action-form';
 import { CopySummary } from '@/components/copy-summary';
@@ -26,6 +26,7 @@ import {
   publish,
   removeExpense,
   saveRoster,
+  settleEvent,
 } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -50,8 +51,11 @@ export default async function PanelPage() {
 
   const club = await membersOf(connection, groupId);
   const event = await openEventFor(connection, groupId);
+  // A settled rolê stops being the current one without ceasing to exist.
+  const past = (await eventsOf(connection, groupId)).filter((entry) => entry.status === 'settled');
 
-  if (!event) return <NewEvent />;
+  // Right after closing one, this is the whole screen — so the history has to be on it too.
+  if (!event) return <NewEvent past={past} />;
 
   const loaded = await loadEvent(connection, event.id);
   // Guests belong to the open event, so they exist only in what loadEvent returns (D29).
@@ -345,15 +349,43 @@ export default async function PanelPage() {
               {/* Only once published: pasting amounts that are still moving is how a group chat
                   became the ledger in the first place (D15). */}
               <CopySummary text={chatSummary(loaded.event, settlement)} />
+
+              {/* Closing is what lets the next rolê exist (D4). It closes whatever the state of
+                  the payments — somebody who pays late should not hold the whole club. */}
+              <ActionForm action={settleEvent} className="flex flex-col gap-2 border-t pt-4">
+                <input type="hidden" name="eventId" value={event.id} />
+                <p className="text-muted-foreground text-xs">{t.event.settleHint}</p>
+                <div>
+                  <SubmitButton variant="secondary" size="sm">
+                    {t.event.settle}
+                  </SubmitButton>
+                </div>
+              </ActionForm>
             </>
           )}
+        </section>
+      )}
+
+      {past.length > 0 && (
+        <section className="flex flex-col gap-2 border-t pt-4">
+          <h2 className="text-muted-foreground text-xs">{t.event.past}</h2>
+          {past.map((entry) => (
+            <Link
+              key={entry.id}
+              href={`/painel/roles/${entry.id}`}
+              className="flex justify-between gap-4 text-sm underline-offset-4 hover:underline"
+            >
+              <span>{entry.name}</span>
+              <span className="text-muted-foreground">{entry.date}</span>
+            </Link>
+          ))}
         </section>
       )}
     </main>
   );
 }
 
-function NewEvent() {
+function NewEvent({ past }: { past: readonly { id: string; name: string; date: string }[] }) {
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-4 p-5">
       <h1 className="text-2xl font-semibold tracking-tight">{t.event.newEvent}</h1>
@@ -370,6 +402,22 @@ function NewEvent() {
           <SubmitButton>{t.event.create}</SubmitButton>
         </div>
       </ActionForm>
+
+      {past.length > 0 && (
+        <section className="flex flex-col gap-2 border-t pt-4">
+          <h2 className="text-muted-foreground text-xs">{t.event.past}</h2>
+          {past.map((entry) => (
+            <Link
+              key={entry.id}
+              href={`/painel/roles/${entry.id}`}
+              className="flex justify-between gap-4 text-sm underline-offset-4 hover:underline"
+            >
+              <span>{entry.name}</span>
+              <span className="text-muted-foreground">{entry.date}</span>
+            </Link>
+          ))}
+        </section>
+      )}
     </main>
   );
 }
