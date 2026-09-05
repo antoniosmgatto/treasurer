@@ -64,8 +64,6 @@ export const members = pgTable(
     retiredAt: timestamp('retired_at', { withTimezone: true }),
     /** Set when the row was a mistake. Hidden everywhere, never removed (D19). */
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
-    /** This member's own read link — it lands them on their own amount (D11). */
-    readToken: text('read_token').notNull(),
   },
   (table) => [
     /**
@@ -73,7 +71,6 @@ export const members = pgTable(
      * a departed member's code can never be handed to somebody new.
      */
     uniqueIndex('member_group_code_idx').on(table.groupId, table.code),
-    uniqueIndex('member_read_token_idx').on(table.readToken),
     index('member_group_idx').on(table.groupId),
   ],
 );

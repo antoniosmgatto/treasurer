@@ -171,11 +171,11 @@ describe('the database enforces the decisions, not just the code', () => {
   it('keeps a guest on their event and out of the club', async () => {
     const guestId = await addGuest(db, { groupId: GROUP, eventId: EVENT, name: 'Amigo' });
 
-    // Not on the roster of the club, and holding no link.
+    // Not on the roster of the club, and not in what the CLI prints back.
     const club = await membersOf(db, GROUP);
     expect(club.some((member) => member.id === guestId)).toBe(false);
-    const links = await linksFor(db, GROUP);
-    expect(links?.links.some((link) => link.name === 'Amigo')).toBe(false);
+    const roster = await linksFor(db, GROUP);
+    expect(roster?.members.some((member) => member.name === 'Amigo')).toBe(false);
 
     // Present on the event they came to, with no code.
     const loaded = await loadEvent(db, EVENT);

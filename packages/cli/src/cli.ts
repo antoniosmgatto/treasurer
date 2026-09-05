@@ -24,8 +24,8 @@ const USAGE = `treasurer — settle an event, or bootstrap a club
 
   treasurer <file.json>              per-member table and chat summary
   treasurer <file.json> --member ID  one member's own breakdown
-  treasurer seed <club.json>         create the club and print everyone's links
-  treasurer links [--rotate]         reprint the links; --rotate reissues the write link
+  treasurer seed <club.json>         create the club and print the treasurer's link
+  treasurer links [--rotate]         reprint the treasurer's link; --rotate reissues it
   treasurer migrate                  apply migrations to DATABASE_URL
 
 Settling is a test harness (D5); seeding is how a club first exists (D18).
@@ -98,9 +98,10 @@ async function seed(path: string): Promise<number> {
     console.log(`Clube criado.\n`);
     console.log(`Link do tesoureiro (guarde, dá acesso de escrita):`);
     console.log(`  /acesso/${created.writeToken}\n`);
-    console.log(`Links dos membros:`);
-    for (const link of created.links) {
-      console.log(`  ${formatCode(link.code)}  ${link.name.padEnd(20)}  ${link.url}`);
+    // D32: members hold no link of their own. They get the rolê's link, per rolê.
+    console.log(`Membros:`);
+    for (const member of created.members) {
+      console.log(`  ${formatCode(member.code)}  ${member.name}`);
     }
     return 0;
   } finally {
@@ -145,9 +146,9 @@ async function links(rotate: boolean): Promise<number> {
     console.log(`${only.name}\n`);
     console.log('Link do tesoureiro (guarde, dá acesso de escrita):');
     console.log(`  /acesso/${found.writeToken}\n`);
-    console.log('Links dos membros:');
-    for (const link of found.links) {
-      console.log(`  ${formatCode(link.code)}  ${link.name.padEnd(20)}  ${link.url}`);
+    console.log('Membros:');
+    for (const member of found.members) {
+      console.log(`  ${formatCode(member.code)}  ${member.name}`);
     }
     return 0;
   } finally {

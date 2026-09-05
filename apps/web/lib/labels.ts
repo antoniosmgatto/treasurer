@@ -94,7 +94,6 @@ export const t = {
     exact: 'Pague o valor exato, sem arredondar.',
     broughtOwn: 'você trouxe a sua',
     notReady: 'O rateio ainda está sendo fechado. Volte daqui a pouco.',
-    noEvent: 'Nenhum rolê aberto no momento.',
     changed: 'O valor mudou depois do seu pagamento. O clube vai conferir.',
   },
 
@@ -104,8 +103,6 @@ export const t = {
     name: 'Nome',
     retire: 'Marcar como saiu',
     retired: 'Saiu do clube',
-    link: 'Link',
-    copyLink: 'Copiar link',
   },
 
   errors: {

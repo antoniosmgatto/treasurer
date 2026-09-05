@@ -35,6 +35,15 @@ export default async function MemberOnEventPage({
   const changed =
     position !== undefined && position.moved !== 0 && position.charged + position.moved !== 0;
 
+  /**
+   * What they owe comes from the bills; whether they have paid comes from the ledger. The
+   * settlement alone cannot know, and showing "a pagar" to somebody who already paid is how an
+   * app loses the trust it exists to create.
+   */
+  const settled =
+    (mine.owed === 0 && mine.net === 0) ||
+    (position !== undefined && position.moved !== 0 && !changed);
+
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-6 p-5">
       <header>
@@ -44,14 +53,23 @@ export default async function MemberOnEventPage({
         <h1 className="text-2xl font-semibold tracking-tight">{mine.name}</h1>
       </header>
 
-      <div className="bg-muted rounded-xl p-5">
-        <p className="text-muted-foreground text-sm">
-          {mine.owed > 0 ? t.member.toPay : t.member.youReceive}
-        </p>
-        <p className="text-4xl font-semibold tabular-nums">
-          {formatBRL(mine.owed > 0 ? mine.owed : mine.receiving)}
-        </p>
-      </div>
+      {settled ? (
+        <div className="bg-muted rounded-xl p-5">
+          <p className="text-muted-foreground text-sm">{t.member.settled}</p>
+        </div>
+      ) : (
+        <div className="bg-muted flex flex-col gap-1 rounded-xl p-5">
+          <p className="text-muted-foreground text-sm">
+            {mine.owed > 0 ? t.member.toPay : t.member.youReceive}
+          </p>
+          <p className="text-4xl font-semibold tabular-nums">
+            {formatBRL(mine.owed > 0 ? mine.owed : mine.receiving)}
+          </p>
+          {/* The identification scheme lives in the centavos: an amount somebody rounds off on
+              their banking app is an amount that arrives unattributable (D1, D24). */}
+          {mine.owed > 0 && <p className="text-muted-foreground text-sm">{t.member.exact}</p>}
+        </div>
+      )}
 
       {changed && (
         <p className="border-destructive text-destructive rounded-lg border px-3 py-2 text-sm">
@@ -73,7 +91,15 @@ export default async function MemberOnEventPage({
           ))}
         </ul>
 
-        {mine.payments.length > 0 && (
+        {/* The other side of the same centavos: they stay with whoever collected the bill. */}
+        {mine.rounding > 0 && (
+          <p className="text-muted-foreground flex justify-between gap-4 text-sm">
+            <span>{t.member.roundingKept}</span>
+            <span className="tabular-nums">{formatBRL(mine.rounding)}</span>
+          </p>
+        )}
+
+        {mine.payments.length > 0 && !settled && (
           <>
             <hr className="border-border" />
             <h2 className="text-muted-foreground text-xs">{t.member.payTo}</h2>
