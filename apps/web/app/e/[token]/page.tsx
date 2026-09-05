@@ -107,7 +107,7 @@ export default async function MemberPage({ params }: { params: Promise<{ token: 
       )}
 
       <footer className="text-muted-foreground mt-auto text-xs">
-        {t.settlement.code} {formatCode(found.member.code)}
+        {found.member.code !== undefined && `${t.settlement.code} ${formatCode(found.member.code)}`}
       </footer>
     </main>
   );

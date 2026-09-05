@@ -279,3 +279,47 @@ describe('settle — the man who does not drink', () => {
     expect(formatBRL(m02.collecting)).toBe('R$ 249,64');
   });
 });
+
+describe('settle — a guest', () => {
+  // Somebody's friend came camping. He eats, he owes, and he holds nothing afterwards.
+  const guest: Member = { id: 'g01', name: 'Amigo do Membro 02', guestOf: 'acampamento-2026-08' };
+  const withGuest: Event = {
+    ...acampamento,
+    expenses: acampamento.expenses.map((expense) => ({
+      ...expense,
+      participants: [...expense.participants, { memberId: guest.id, weight: 1 }],
+    })),
+  };
+
+  const settlement = settle(withGuest, [...members, guest]);
+  const forMember = (id: string) => settlement.members.find((member) => member.memberId === id)!;
+
+  it('charges him like anybody else', () => {
+    // Eleven shares now, so everybody pays a little less than the ten-way split.
+    expect(formatBRL(forMember('g01').owed)).toBe('R$ 43,21');
+    expect(formatBRL(forMember('m04').owed)).toBe('R$ 43,21');
+  });
+
+  it('gives him no code, because codes are the club and he is not in it', () => {
+    expect(forMember('g01').code).toBeUndefined();
+    expect(forMember('m04').code).toBe(4);
+  });
+
+  it('routes his money to the collectors like everybody else', () => {
+    expect(forMember('g01').payments.map((payment) => payment.name)).toEqual([
+      'Membro 01',
+      'Membro 02',
+      'Clube',
+    ]);
+  });
+
+  it('refuses a guest who holds a code', () => {
+    const impostor: Member = { ...guest, code: 42 };
+    expect(() => settle(withGuest, [...members, impostor])).toThrow(/cannot hold a code/);
+  });
+
+  it('refuses a member with no code who is not a guest', () => {
+    const nameless: Member = { id: 'x01', name: 'Sem código' };
+    expect(() => settle(acampamento, [...members, nameless])).toThrow(/has no identification code/);
+  });
+});

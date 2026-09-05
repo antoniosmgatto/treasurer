@@ -32,6 +32,9 @@ export const t = {
     published: 'Valores liberados para os membros',
     settle: 'Marcar evento como quitado',
     saveRoster: 'Salvar quem foi',
+    addGuest: 'Adicionar convidado',
+    guestName: 'Nome do convidado',
+    guest: 'convidado',
     members: 'Membros',
   },
 

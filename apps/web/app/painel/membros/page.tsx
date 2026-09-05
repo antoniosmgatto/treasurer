@@ -30,7 +30,9 @@ export default async function MembersPage() {
         {members.map((member) => (
           <li key={member.id} className="flex items-center justify-between gap-3 border-t py-3">
             <span className="flex items-baseline gap-2">
-              <span className="text-muted-foreground tabular-nums">{formatCode(member.code)}</span>
+              <span className="text-muted-foreground tabular-nums">
+                {member.code === undefined ? '—' : formatCode(member.code)}
+              </span>
               <span>{member.name}</span>
               {member.retiredAt && (
                 <span className="text-muted-foreground text-xs">{t.admin.retired}</span>

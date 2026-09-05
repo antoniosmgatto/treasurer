@@ -1,5 +1,5 @@
 import { isValidCode } from './codes.js';
-import type { Event, Member } from './types.js';
+import { isGuest, type Event, type Member } from './types.js';
 
 export class InvalidLedgerError extends Error {
   constructor(readonly problems: readonly string[]) {
@@ -13,6 +13,15 @@ export function validateMembers(members: readonly Member[]): string[] {
 
   const seenCodes = new Map<number, string>();
   for (const member of members) {
+    // A guest is a name on one event and takes no code (D29).
+    if (member.code === undefined) {
+      if (!isGuest(member)) problems.push(`${member.name} has no identification code`);
+      continue;
+    }
+    if (isGuest(member)) {
+      problems.push(`${member.name} is a guest and cannot hold a code`);
+      continue;
+    }
     if (!isValidCode(member.code)) {
       problems.push(`${member.name} has an out-of-range code: ${member.code}`);
     }

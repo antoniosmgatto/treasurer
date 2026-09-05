@@ -2,11 +2,14 @@ import { CLUB, chatSummary, settle, type Member } from '@treasurer/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { newToken } from '../src/ids.js';
 import {
+  addGuest,
   appendEntries,
   balancesFor,
   closeEvent,
   insertMembers,
+  linksFor,
   loadEvent,
+  membersOf,
   nextCode,
   recordExpense,
   type Db,
@@ -153,6 +156,29 @@ describe('the database enforces the decisions, not just the code', () => {
         date: '2026-09-12',
       }),
     ).resolves.not.toThrow();
+  });
+
+  it('keeps a guest on their event and out of the club', async () => {
+    const guestId = await addGuest(db, { groupId: GROUP, eventId: EVENT, name: 'Amigo' });
+
+    // Not on the roster of the club, and holding no link.
+    const club = await membersOf(db, GROUP);
+    expect(club.some((member) => member.id === guestId)).toBe(false);
+    const links = await linksFor(db, GROUP);
+    expect(links?.links.some((link) => link.name === 'Amigo')).toBe(false);
+
+    // Present on the event they came to, with no code.
+    const loaded = await loadEvent(db, EVENT);
+    const guest = loaded!.members.find((member) => member.id === guestId)!;
+    expect(guest.name).toBe('Amigo');
+    expect(guest.code).toBeUndefined();
+    expect(guest.guestOf).toBe(EVENT);
+  });
+
+  it('does not spend an identification code on a guest (D7)', async () => {
+    const before = await nextCode(db, GROUP);
+    await addGuest(db, { groupId: GROUP, eventId: EVENT, name: 'Outro amigo' });
+    expect(await nextCode(db, GROUP)).toBe(before);
   });
 
   it('round-trips a nota that differs from what was charged', async () => {

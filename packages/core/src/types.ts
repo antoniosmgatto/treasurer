@@ -8,9 +8,19 @@ export type MemberCode = number;
 export interface Member {
   id: MemberId;
   name: string;
-  code: MemberCode;
+  /**
+   * Absent for a guest, who is on one event and holds no place in the club. Codes are the club's
+   * own numbering and a guest never takes one — D7 keeps them scarce and permanent.
+   */
+  code?: MemberCode;
+  /** The event a guest belongs to. Set only for guests, who exist nowhere else. */
+  guestOf?: string;
   /** Set when the member leaves. Their code retires with them and is never reallocated. */
   retiredAt?: string;
+}
+
+export function isGuest(member: Member): boolean {
+  return member.guestOf !== undefined;
 }
 
 export interface Participant {

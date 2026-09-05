@@ -63,7 +63,11 @@ export function chatSummary(event: Event, settlement: Settlement): string {
  * paid nothing for, and the rounding is named rather than buried (D1).
  */
 export function memberSummary(member: MemberSettlement): string {
-  const lines = [`*${member.name}* (código ${formatCode(member.code)})`, ''];
+  const heading =
+    member.code === undefined
+      ? `*${member.name}*`
+      : `*${member.name}* (código ${formatCode(member.code)})`;
+  const lines = [heading, ''];
 
   for (const line of member.lines) {
     if (line.fronted > 0) {

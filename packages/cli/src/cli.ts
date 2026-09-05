@@ -202,7 +202,7 @@ function main(argv: string[]): number {
     console.log(
       [
         pad(member.name, width),
-        padStart(formatCode(member.code), 4),
+        padStart(member.code === undefined ? '—' : formatCode(member.code), 4),
         padStart(member.owed > 0 ? formatBRL(member.owed) : '—', 12),
         padStart(member.receiving > 0 ? formatBRL(member.receiving) : '—', 12),
       ].join('  '),
