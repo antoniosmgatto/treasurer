@@ -69,6 +69,10 @@ pnpm dev
 reissues the treasurer's — the write link is a password that happens to be a URL, so pasting it
 somewhere public should cost a new link rather than a new club.
 
+There is no login here, and that is the local default rather than a missing feature: the panel's
+gate is a shared passphrase that exists only where `PANEL_PASSPHRASE` is set, which is the
+deployment and not your machine (D34).
+
 To put it online, see [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## Direction
